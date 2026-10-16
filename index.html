@@ -14,7 +14,7 @@
   <!-- MQTT.js 라이브러리 -->
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 
-  <!-- [PWA 아이콘 & 매니페스트 자동 생성 스크립트] -->
+  <!-- [PWA 동적 아이콘 & 매니페스트 생성 엔진] -->
   <script>
     (function() {
       function createDeskPetIcon(size) {
@@ -24,32 +24,27 @@
         const ctx = canvas.getContext('2d');
         const s = size / 192;
 
-        // 배경 사각형
         ctx.fillStyle = '#0f172a';
         ctx.beginPath();
         ctx.roundRect(0, 0, size, size, 40 * s);
         ctx.fill();
 
-        // 테두리
         ctx.strokeStyle = '#38bdf8';
         ctx.lineWidth = 6 * s;
         ctx.stroke();
 
-        // 땡그란 눈
         ctx.fillStyle = '#f8fafc';
         ctx.beginPath();
         ctx.roundRect(40 * s, 55 * s, 36 * s, 48 * s, 18 * s);
         ctx.roundRect(116 * s, 55 * s, 36 * s, 48 * s, 18 * s);
         ctx.fill();
 
-        // 눈동자 하이라이트
         ctx.fillStyle = '#0f172a';
         ctx.beginPath();
         ctx.arc(50 * s, 68 * s, 8 * s, 0, Math.PI * 2);
         ctx.arc(126 * s, 68 * s, 8 * s, 0, Math.PI * 2);
         ctx.fill();
 
-        // 볼터치
         ctx.strokeStyle = '#f43f5e';
         ctx.lineWidth = 4 * s;
         ctx.lineCap = 'round';
@@ -60,7 +55,6 @@
         ctx.moveTo(157 * s, 115 * s); ctx.lineTo(167 * s, 105 * s);
         ctx.stroke();
 
-        // 'ㅅ' 입
         ctx.strokeStyle = '#f8fafc';
         ctx.lineWidth = 5 * s;
         ctx.beginPath();
@@ -76,7 +70,6 @@
       const icon192 = createDeskPetIcon(192);
       const icon512 = createDeskPetIcon(512);
 
-      // Apple Touch Icon & Favicon 동적 주입
       const appleIcon = document.createElement('link');
       appleIcon.rel = 'apple-touch-icon';
       appleIcon.href = icon192;
@@ -88,7 +81,6 @@
       favicon.href = icon192;
       document.head.appendChild(favicon);
 
-      // manifest.json 동적 주입
       const manifestObj = {
         name: "DeskPet Remote",
         short_name: "DeskPet",
@@ -144,7 +136,6 @@
       align-items: center;
       min-height: 100vh;
       padding: 16px;
-      /* iOS safe area 대응 */
       padding-top: max(16px, env(safe-area-inset-top));
       padding-bottom: max(16px, env(safe-area-inset-bottom));
     }
@@ -336,7 +327,7 @@
     .remote-panel {
       display: flex;
       flex-direction: column;
-      gap: 18px;
+      gap: 16px;
     }
 
     .header {
@@ -374,31 +365,42 @@
       box-shadow: 0 0 8px #10b981;
     }
 
-    .target-selector {
+    /* 프로필 및 타겟 선택 섹션 */
+    .selector-label {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-sub);
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .selector-box {
       display: grid;
       grid-template-columns: 1fr 1fr;
       background: #0f172a;
       padding: 4px;
-      border-radius: 14px;
+      border-radius: 12px;
       gap: 4px;
+      border: 1px solid var(--border);
     }
 
-    .target-btn {
+    .toggle-btn {
       background: transparent;
       border: none;
       color: var(--text-sub);
-      padding: 10px;
-      font-size: 0.95rem;
-      font-weight: 600;
-      border-radius: 10px;
+      padding: 8px;
+      font-size: 0.88rem;
+      font-weight: 700;
+      border-radius: 8px;
       cursor: pointer;
       transition: all 0.2s ease;
     }
 
-    .target-btn.active {
+    .toggle-btn.active {
       background: var(--card-bg);
       color: var(--primary);
-      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
     }
 
     .msg-box {
@@ -409,7 +411,7 @@
 
     textarea {
       width: 100%;
-      height: 90px;
+      height: 85px;
       background: #0f172a;
       border: 1px solid var(--border);
       border-radius: 14px;
@@ -451,9 +453,9 @@
       background: #0f172a;
       border: 1px solid var(--border);
       color: var(--text-main);
-      padding: 14px;
+      padding: 13px;
       border-radius: 14px;
-      font-size: 0.9rem;
+      font-size: 0.88rem;
       font-weight: 600;
       cursor: pointer;
       display: flex;
@@ -497,7 +499,7 @@
       border: 1px dashed var(--border);
     }
 
-    /* --- [보안 잠금 모달 오버레이] --- */
+    /* --- [보안 잠금 모달] --- */
     .auth-overlay {
       position: fixed;
       top: 0;
@@ -610,16 +612,22 @@
         </div>
       </div>
 
-      <!-- 발신 대상 선택: KIM / JI -->
-      <div class="target-selector">
-        <button class="target-btn active" id="btnTargetKIM" onclick="setTarget('KIM')">To: KIM</button>
-        <button class="target-btn" id="btnTargetJI" onclick="setTarget('JI')">To: JI</button>
+      <!-- ★ 1. 내 프로필 설정 (나는 누구인가: KIM / JI) -->
+      <div>
+        <div class="selector-label">
+          <span>내 프로필 (이 기기의 사용자)</span>
+          <span id="targetNoticeText" style="color: var(--primary);">상대방: JI</span>
+        </div>
+        <div class="selector-box">
+          <button class="toggle-btn" id="btnMyKIM" onclick="setMyIdentity('KIM')">나는 KIM</button>
+          <button class="toggle-btn" id="btnMyJI" onclick="setMyIdentity('JI')">나는 JI</button>
+        </div>
       </div>
 
       <!-- 메시지 전송 영역 -->
       <div class="msg-box">
         <textarea id="msgInput" placeholder="전송할 메시지나 자모(ㅋㅋ, ㅠㅠ)를 입력하세요..."></textarea>
-        <button class="send-msg-btn" onclick="sendMessage()">메시지 전송 ✉️</button>
+        <button class="send-msg-btn" id="sendBtn" onclick="sendMessage()">JI에게 메시지 전송 ✉️</button>
       </div>
 
       <!-- 인터랙션 조작 그리드 -->
@@ -642,11 +650,12 @@
 
   <script>
     // ================= [설정] =================
-    const SECRET_PIN = "0928"; // 접속 비밀번호
+    const SECRET_PIN = "0928"; 
     const BROKER_URL = "wss://broker.hivemq.com:8884/mqtt";
     const BASE_TOPIC = "my_deskpet_2026/dev_";
 
-    let currentTarget = "KIM";
+    // ★ 내 프로필 (localStorage 저장 및 복원, 기본값: KIM)
+    let myIdentity = localStorage.getItem("deskpet_my_id") || "KIM";
     let client = null;
 
     // --- [1. 보안 패스워드 검증] ---
@@ -677,11 +686,30 @@
     });
 
     function initApp() {
+      updateIdentityUI();
       loadChatHistory();
       initMQTT();
     }
 
-    // --- [2. MQTT 통신 초기화] ---
+    // --- [2. 내 프로필 설정 (KIM / JI)] ---
+    function setMyIdentity(id) {
+      myIdentity = id;
+      localStorage.setItem("deskpet_my_id", id);
+      updateIdentityUI();
+      loadChatHistory(); // 프로필 변경 시 말풍선 좌우 배치 재렌더링
+    }
+
+    function updateIdentityUI() {
+      const isKIM = (myIdentity === "KIM");
+      document.getElementById("btnMyKIM").classList.toggle("active", isKIM);
+      document.getElementById("btnMyJI").classList.toggle("active", !isKIM);
+
+      const target = isKIM ? "JI" : "KIM";
+      document.getElementById("targetNoticeText").innerText = `상대방: ${target}`;
+      document.getElementById("sendBtn").innerText = `${target}에게 메시지 전송 ✉️`;
+    }
+
+    // --- [3. MQTT 통신 초기화] ---
     function initMQTT() {
       const clientId = "WebClient-" + Math.random().toString(16).substring(2, 8);
       client = mqtt.connect(BROKER_URL, {
@@ -694,7 +722,7 @@
         document.getElementById("statusDot").classList.add("connected");
         document.getElementById("statusText").innerText = "연결됨";
 
-        // 양방향 메시지 및 읽음 확인(ACK) 수신을 위해 KIM, JI 토픽 모두 구독
+        // 양방향 실시간 메시지 및 ACK 수신을 위해 KIM, JI 토픽 모두 구독
         client.subscribe(BASE_TOPIC + "KIM");
         client.subscribe(BASE_TOPIC + "JI");
       });
@@ -708,7 +736,7 @@
       client.on("message", (topic, payload) => {
         const text = payload.toString();
 
-        // 1) 보드가 보낸 읽음 확인(ACK) 수신 처리 -> 숫자 1 제거
+        // 1) 보드가 보낸 읽음 확인(ACK) 수신 -> 숫자 1 제거
         if (text.startsWith("#ACK:")) {
           const ackMsgId = text.replace("#ACK:", "").trim();
           markMessageAsRead(ackMsgId);
@@ -718,7 +746,7 @@
         const receiver = topic.replace(BASE_TOPIC, "");
         const sender = (receiver === "KIM") ? "JI" : "KIM";
 
-        // 2) 일반 메시지 또는 인터랙션 수신
+        // 2) 일반 메시지 수신
         let cleanText = text;
         let incomingId = null;
         if (cleanText.startsWith("#ID:")) {
@@ -733,12 +761,6 @@
       });
     }
 
-    function setTarget(target) {
-      currentTarget = target;
-      document.getElementById("btnTargetKIM").classList.toggle("active", target === "KIM");
-      document.getElementById("btnTargetJI").classList.toggle("active", target === "JI");
-    }
-
     function sendRaw(target, content) {
       if (!client || !client.connected) {
         alert("MQTT 브로커에 연결되지 않았습니다. 잠시 후 다시 시도해 주세요.");
@@ -748,26 +770,29 @@
       client.publish(topic, content, { qos: 0 });
     }
 
-    // 텍스트 메시지 발송 (#ID:msgId#본문)
+    // 텍스트 메시지 발송 (#ID:msgId#메시지)
     function sendMessage() {
       const input = document.getElementById("msgInput");
       const msg = input.value.trim();
       if (!msg) return;
 
-      const sender = (currentTarget === "KIM") ? "JI" : "KIM";
+      const sender = myIdentity; // 내 프로필이 발신자
+      const receiver = (myIdentity === "KIM") ? "JI" : "KIM"; // 상대방이 수신자
       const msgId = "m_" + Date.now();
       const payload = `#ID:${msgId}#${msg}`;
 
-      sendRaw(currentTarget, payload);
-      addMessageToChat(sender, currentTarget, msg, true, msgId);
+      sendRaw(receiver, payload);
+      // 웹 채팅창에 무조건 1(안읽음) 상태로 표시
+      addMessageToChat(sender, receiver, msg, true, msgId);
       input.value = "";
     }
 
     // 인터랙션 명령 발송
     function sendAction(actionCmd) {
-      const sender = (currentTarget === "KIM") ? "JI" : "KIM";
-      sendRaw(currentTarget, actionCmd);
-      addMessageToChat(sender, currentTarget, actionCmd, true, null);
+      const sender = myIdentity;
+      const receiver = (myIdentity === "KIM") ? "JI" : "KIM";
+      sendRaw(receiver, actionCmd);
+      addMessageToChat(sender, receiver, actionCmd, true, null);
     }
 
     document.getElementById("msgInput").addEventListener("keydown", (e) => {
@@ -777,7 +802,7 @@
       }
     });
 
-    // --- [3. 채팅 렌더링 & 읽음 확인 엔진] ---
+    // --- [4. 채팅 렌더링 & 읽음 확인 엔진] ---
     function getTimeString() {
       const now = new Date();
       let hours = now.getHours();
@@ -791,7 +816,7 @@
     function addMessageToChat(sender, receiver, text, isSelfOrigin, msgId) {
       const timeStr = getTimeString();
       const isAction = text.startsWith("#CMD:");
-      const isMy = (sender === "KIM");
+      const isMy = (sender === myIdentity);
       const needsBadge = isMy && !isAction;
 
       const msgObj = {
@@ -800,7 +825,7 @@
         receiver: receiver,
         text: text,
         time: timeStr,
-        read: !needsBadge
+        read: !needsBadge // 내가 보낸 일반 텍스트만 '1' 뱃지 대상
       };
 
       const history = getSavedHistory();
@@ -817,7 +842,8 @@
 
     function renderMessageBubble(msg) {
       const chatBox = document.getElementById("chatMessages");
-      const isMy = (msg.sender === "KIM");
+      // ★ 현재 접속자(myIdentity)가 보낸 글이면 우측 노란 말풍선
+      const isMy = (msg.sender === myIdentity);
 
       const groupDiv = document.createElement("div");
       groupDiv.className = `msg-group ${isMy ? 'my' : 'other'}`;
@@ -854,7 +880,7 @@
       const metaDiv = document.createElement("div");
       metaDiv.className = "meta-col";
 
-      // 내가 보낸 일반 텍스트일 때 카카오톡 노란색 숫자 1 표시
+      // 내가 보낸 일반 텍스트일 때 노란색 숫자 1 표시
       if (isMy && !msg.text.startsWith("#CMD:")) {
         const badgeSpan = document.createElement("span");
         badgeSpan.className = `unread-badge ${msg.read ? 'read' : ''}`;
@@ -876,7 +902,6 @@
       chatBox.scrollTop = chatBox.scrollHeight;
     }
 
-    // 상대방 보드가 열람했을 때 실시간 1 제거
     function markMessageAsRead(msgId) {
       const badge = document.getElementById(`badge_${msgId}`);
       if (badge) {
@@ -896,7 +921,7 @@
       }
     }
 
-    // --- [4. 로컬 스토리지 관리] ---
+    // --- [5. 로컬 스토리지 관리] ---
     function getSavedHistory() {
       try {
         return JSON.parse(localStorage.getItem("deskpet_chat_history")) || [];
