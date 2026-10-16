@@ -1,0 +1,13 @@
+// 오프라인 캐시 및 PWA 설치 요건 충족용 기본 서비스 워커
+self.addEventListener("install", (e) => {
+  self.skipWaiting();
+});
+
+self.addEventListener("activate", (e) => {
+  console.log("Service Worker 활성화됨");
+});
+
+self.addEventListener("fetch", (e) => {
+  // 네트워크 우선 통신 (실시간 MQTT 통신 보장)
+  e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+});
