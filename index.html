@@ -13,7 +13,9 @@
       --text-main: #f8fafc;
       --text-muted: #94a3b8;
       --bubble-sent: #fee500;
-      --bubble-text: #191919;
+      --bubble-sent-text: #191919;
+      --bubble-recv: #334155;
+      --bubble-recv-text: #f8fafc;
       --unread-color: #facc15;
     }
 
@@ -41,17 +43,37 @@
     .chat-area {
       flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;
     }
-    .msg-row { display: flex; flex-direction: column; align-items: flex-end; }
-    .msg-bubble-wrap { display: flex; align-items: flex-end; gap: 6px; }
-    
+
+    /* 내가 보낸 메시지 (우측 정렬) */
+    .msg-row.sent {
+      display: flex; flex-direction: column; align-items: flex-end;
+    }
+    .msg-row.sent .msg-bubble-wrap {
+      display: flex; align-items: flex-end; gap: 6px;
+    }
+    .msg-row.sent .msg-bubble {
+      max-width: 260px; padding: 10px 14px; border-radius: 16px 4px 16px 16px;
+      background: var(--bubble-sent); color: var(--bubble-sent-text); font-size: 14px; line-height: 1.4;
+      word-break: break-all; font-weight: 500; box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
+    /* 상대방이 보낸 메시지 (좌측 정렬) */
+    .msg-row.recv {
+      display: flex; flex-direction: column; align-items: flex-start;
+    }
+    .msg-sender {
+      font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px; margin-left: 2px;
+    }
+    .msg-row.recv .msg-bubble {
+      max-width: 260px; padding: 10px 14px; border-radius: 4px 16px 16px 16px;
+      background: var(--bubble-recv); color: var(--bubble-recv-text); font-size: 14px; line-height: 1.4;
+      word-break: break-all; font-weight: 500; box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
     .unread-badge {
       color: var(--unread-color); font-size: 11px; font-weight: 800; line-height: 1; margin-bottom: 3px;
     }
-    .msg-bubble {
-      max-width: 260px; padding: 10px 14px; border-radius: 16px 4px 16px 16px;
-      background: var(--bubble-sent); color: var(--bubble-text); font-size: 14px; line-height: 1.4;
-      word-break: break-all; font-weight: 500; box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-    }
+    
     .msg-bubble.action {
       background: #334155; color: #f1f5f9; border-radius: 14px; font-size: 13px;
     }
@@ -106,7 +128,6 @@
     .field-input:focus { border-color: var(--accent); }
     .field-input.uppercase { text-transform: uppercase; font-weight: 600; }
 
-    /* 토글 스위치 행 */
     .toggle-row {
       display: flex; justify-content: space-between; align-items: center; padding: 4px 0;
     }
@@ -222,7 +243,6 @@
         <input type="text" id="inputTargetName" class="field-input uppercase" placeholder="예: CHOI">
       </div>
 
-      <!-- 암호 사용 활성화 / 비활성화 토글 -->
       <div class="toggle-row">
         <span class="field-label" style="margin:0;">접속 시 암호 잠금 사용</span>
         <label class="toggle-switch">
@@ -247,21 +267,18 @@
   let myName     = localStorage.getItem("deskpet_my_name") || "PARK";
   let targetName = localStorage.getItem("deskpet_target_name") || "CHOI";
   
-  // 보안 설정: 기본값 = 암호 사용 활성화(true), 기본 암호 1234
   let usePw      = localStorage.getItem("deskpet_use_pw") !== "false"; 
   let appPw      = localStorage.getItem("deskpet_app_pw") || "1234";
 
   let isUnlocked = false;
   let client = null;
-  let sentMessages = JSON.parse(localStorage.getItem("deskpet_chat_history") || "[]");
+  let chatHistory = JSON.parse(localStorage.getItem("deskpet_chat_history") || "[]");
 
-  // 진입 검사
   function checkEntrySecurity() {
     if (usePw) {
       document.getElementById("lockModal").style.display = "flex";
       setTimeout(() => { document.getElementById("inputLockPw").focus(); }, 150);
     } else {
-      // 암호 미사용 설정 시 즉시 잠금 해제 및 연결
       isUnlocked = true;
       document.getElementById("lockModal").style.display = "none";
       updatePairHeader();
@@ -287,7 +304,6 @@
     }
   }
 
-  // 암호 분실 복구
   function openForgotModal() {
     document.getElementById("lockModal").style.display = "none";
     document.getElementById("forgotModal").style.display = "flex";
@@ -303,9 +319,8 @@
     const entered = document.getElementById("inputVerifyPairCode").value.trim().toUpperCase();
     if (!entered) { alert("커플 연결 코드를 입력하세요."); return; }
 
-    // 기기에 등록된 커플 코드와 일치하는지 검증
     if (entered === pairCode && pairCode.length > 0) {
-      alert("커플 코드 인증 성공!\n접속 암호가 초기화(1234)되었습니다. 설정창에서 암호를 변경하거나 해제하세요.");
+      alert("커플 코드 인증 성공!\n접속 암호가 초기화(1234)되었습니다.");
       appPw = "1234";
       localStorage.setItem("deskpet_app_pw", appPw);
       
@@ -317,7 +332,7 @@
     } else {
       const card = document.getElementById("forgotCard");
       card.classList.add("shake");
-      alert("등록된 커플 연결 코드와 일치하지 않습니다.\n기기 초기 설정 포털(192.168.4.1)에서 설정한 코드를 입력해주세요.");
+      alert("등록된 커플 연결 코드와 일치하지 않습니다.");
       setTimeout(() => card.classList.remove("shake"), 300);
     }
   }
@@ -354,15 +369,57 @@
       setTimeout(connectMQTT, 3000);
     };
 
+    // ★ [핵심] 상대방 메시지 및 수신 확인(ACK) 통합 처리 로직
     client.onMessageArrived = (message) => {
       const payload = message.payloadString;
+
+      // 1. 상대방 보드가 메시지를 확인했을 때 보낸 수신 확인 ACK
       if (payload.startsWith("#ACK:")) {
         const ackId = payload.substring(5).trim();
-        const found = sentMessages.find(m => m.id === ackId);
+        const found = chatHistory.find(m => m.id === ackId && m.sender === 'me');
         if (found) {
           found.read = true;
           saveAndRenderChat();
         }
+        return;
+      }
+
+      // 2. 상대방이 보낸 인터랙션 명령
+      if (payload.startsWith("#CMD:")) {
+        let label = "명령 수신";
+        if (payload === "#CMD:HEART") label = "❤️ " + targetName + "님이 하트를 보냈습니다!";
+        if (payload === "#CMD:TICKLE") label = "👉 " + targetName + "님이 간질였습니다!";
+        if (payload === "#CMD:KNOCK") label = "🔔 " + targetName + "님의 긴급 호출!";
+        if (payload === "#CMD:RESET_FACE") return; // 표정 리셋은 무시
+
+        chatHistory.push({ id: "cmd_" + Date.now(), text: label, sender: 'other', isAction: true, time: Date.now() });
+        saveAndRenderChat();
+        return;
+      }
+
+      // 3. 상대방이 보낸 일반 텍스트 메시지
+      let cleanMsg = payload;
+      let msgId = "m_" + Date.now();
+
+      if (payload.startsWith("#ID:")) {
+        const secondHash = payload.indexOf('#', 4);
+        if (secondHash !== -1) {
+          msgId = payload.substring(4, secondHash);
+          cleanMsg = payload.substring(secondHash + 1);
+        }
+      }
+
+      // 중복 수신 방지
+      const exists = chatHistory.some(m => m.id === msgId);
+      if (!exists) {
+        chatHistory.push({
+          id: msgId,
+          text: cleanMsg,
+          sender: 'other', // 상대방 메시지로 분류
+          time: Date.now()
+        });
+        if (chatHistory.length > 30) chatHistory.shift();
+        saveAndRenderChat();
       }
     };
 
@@ -373,6 +430,8 @@
       onSuccess: () => {
         document.getElementById("statusDot").classList.add("connected");
         document.getElementById("statusText").innerText = "연결됨";
+        
+        // 내 수신 토픽 구독 (상대방이 보낸 메시지 및 ACK 수신)
         const mySubTopic = `deskpet_2026/${pairCode}/dev_${myName}`;
         client.subscribe(mySubTopic);
       },
@@ -399,8 +458,9 @@
     message.destinationName = pubTopic;
     client.send(message);
 
-    sentMessages.push({ id: msgId, text: text, read: false, time: Date.now() });
-    if (sentMessages.length > 20) sentMessages.shift();
+    // 내가 보낸 메시지 저장 (우측 노란 말풍선)
+    chatHistory.push({ id: msgId, text: text, sender: 'me', read: false, time: Date.now() });
+    if (chatHistory.length > 30) chatHistory.shift();
     saveAndRenderChat();
     input.value = "";
   }
@@ -423,35 +483,54 @@
     if (cmd === "#CMD:KNOCK") label = "🔔 긴급 호출을 보냈습니다";
     if (cmd === "#CMD:RESET_FACE") label = "🔄 내 표정을 초기화했습니다";
 
-    sentMessages.push({ id: "cmd_" + Date.now(), text: label, read: true, isAction: true });
+    chatHistory.push({ id: "cmd_" + Date.now(), text: label, sender: 'me', isAction: true, read: true, time: Date.now() });
     saveAndRenderChat();
   }
 
   function saveAndRenderChat() {
-    localStorage.setItem("deskpet_chat_history", JSON.stringify(sentMessages));
+    localStorage.setItem("deskpet_chat_history", JSON.stringify(chatHistory));
     const area = document.getElementById("chatArea");
     area.innerHTML = "";
 
-    sentMessages.forEach(m => {
+    chatHistory.forEach(m => {
       const row = document.createElement("div");
-      row.className = "msg-row";
+      
+      // 발신자 구분 (내가 보낸 것: sent, 상대방이 보낸 것: recv)
+      if (m.sender === 'me') {
+        row.className = "msg-row sent";
+        const wrap = document.createElement("div");
+        wrap.className = "msg-bubble-wrap";
 
-      const wrap = document.createElement("div");
-      wrap.className = "msg-bubble-wrap";
+        // 읽지 않음 숫자 '1' (일반 메시지이고 읽지 않았을 때)
+        if (!m.isAction && !m.read) {
+          const badge = document.createElement("span");
+          badge.className = "unread-badge";
+          badge.innerText = "1";
+          wrap.appendChild(badge);
+        }
 
-      if (!m.isAction && !m.read) {
-        const badge = document.createElement("span");
-        badge.className = "unread-badge";
-        badge.innerText = "1";
-        wrap.appendChild(badge);
+        const bubble = document.createElement("div");
+        bubble.className = "msg-bubble" + (m.isAction ? " action" : "");
+        bubble.innerText = m.text;
+        wrap.appendChild(bubble);
+
+        row.appendChild(wrap);
+      } else {
+        row.className = "msg-row recv";
+        
+        if (!m.isAction) {
+          const senderLabel = document.createElement("span");
+          senderLabel.className = "msg-sender";
+          senderLabel.innerText = targetName;
+          row.appendChild(senderLabel);
+        }
+
+        const bubble = document.createElement("div");
+        bubble.className = "msg-bubble" + (m.isAction ? " action" : "");
+        bubble.innerText = m.text;
+        row.appendChild(bubble);
       }
 
-      const bubble = document.createElement("div");
-      bubble.className = "msg-bubble" + (m.isAction ? " action" : "");
-      bubble.innerText = m.text;
-      wrap.appendChild(bubble);
-
-      row.appendChild(wrap);
       area.appendChild(row);
     });
 
