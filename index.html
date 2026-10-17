@@ -25,6 +25,7 @@
       background: var(--card-bg); position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.5);
     }
 
+    /* 상단 헤더 */
     .header {
       padding: 14px 18px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(10px);
       display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.08);
@@ -36,6 +37,7 @@
     .pair-badge { font-size: 13px; font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: 6px; }
     .gear-btn { background: none; border: none; font-size: 18px; cursor: pointer; padding: 4px; border-radius: 6px; }
 
+    /* 채팅 영역 */
     .chat-area {
       flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;
     }
@@ -54,6 +56,7 @@
       background: #334155; color: #f1f5f9; border-radius: 14px; font-size: 13px;
     }
 
+    /* 하단 인터랙션 컨트롤 */
     .bottom-controls {
       padding: 12px 14px; background: rgba(15, 23, 42, 0.95); border-top: 1px solid rgba(255,255,255,0.08);
       display: flex; flex-direction: column; gap: 10px;
@@ -81,46 +84,86 @@
       padding: 0 16px; border-radius: 12px; cursor: pointer; font-size: 14px;
     }
 
-    /* 설정 모달 */
+    /* 모달 & 잠금 오버레이 */
     .modal-overlay {
-      position: absolute; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
-      display: none; justify-content: center; align-items: center; z-index: 100;
+      position: absolute; inset: 0; background: rgba(15, 23, 42, 0.96); backdrop-filter: blur(8px);
+      display: flex; justify-content: center; align-items: center; z-index: 100;
     }
     .modal-card {
-      width: 86%; max-width: 340px; background: #1e293b; border-radius: 18px; padding: 22px;
+      width: 86%; max-width: 350px; background: #1e293b; border-radius: 20px; padding: 24px;
       display: flex; flex-direction: column; gap: 14px; border: 1px solid rgba(255,255,255,0.1);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.6);
     }
-    .modal-title { font-size: 16px; font-weight: 700; color: #fff; text-align: center; }
+    .modal-title { font-size: 17px; font-weight: 700; color: #fff; text-align: center; }
+    .modal-desc { font-size: 12px; color: var(--text-muted); text-align: center; line-height: 1.4; }
+    
     .field-group { display: flex; flex-direction: column; gap: 6px; }
     .field-label { font-size: 12px; color: var(--text-muted); font-weight: 600; }
     .field-input {
-      padding: 10px 12px; border-radius: 10px; border: 1px solid #334155; background: #0f172a;
-      color: #fff; font-size: 14px; text-transform: uppercase; font-weight: 600;
+      padding: 12px 14px; border-radius: 10px; border: 1px solid #334155; background: #0f172a;
+      color: #fff; font-size: 14px; outline: none;
     }
-    .field-hint { font-size: 11px; color: #64748b; line-height: 1.3; margin-top: -2px; }
+    .field-input:focus { border-color: var(--accent); }
+    .field-input.uppercase { text-transform: uppercase; font-weight: 600; }
 
-    .modal-save-btn {
-      background: var(--accent); border: none; color: #0f172a; font-weight: 700;
-      padding: 12px; border-radius: 10px; cursor: pointer; font-size: 14px; margin-top: 6px;
+    /* 토글 스위치 행 */
+    .toggle-row {
+      display: flex; justify-content: space-between; align-items: center; padding: 4px 0;
+    }
+    .toggle-switch {
+      position: relative; display: inline-block; width: 44px; height: 24px;
+    }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute; cursor: pointer; inset: 0; background-color: #334155;
+      transition: .3s; border-radius: 24px;
+    }
+    .slider:before {
+      position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px;
+      background-color: white; transition: .3s; border-radius: 50%;
+    }
+    input:checked + .slider { background-color: var(--accent); }
+    input:checked + .slider:before { transform: translateX(20px); }
+
+    .modal-btn {
+      background: var(--accent); border: none; color: #0f172a; font-weight: 800;
+      padding: 13px; border-radius: 10px; cursor: pointer; font-size: 14px; margin-top: 6px;
+    }
+    .modal-btn:active { opacity: 0.85; }
+
+    .link-btn {
+      background: none; border: none; color: #94a3b8; font-size: 12px; text-decoration: underline;
+      cursor: pointer; text-align: center; margin-top: 4px;
+    }
+    .link-btn:hover { color: var(--accent); }
+
+    .shake { animation: shakeAnim 0.3s ease-in-out; }
+    @keyframes shakeAnim {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-8px); }
+      40%, 80% { transform: translateX(8px); }
     }
   </style>
 </head>
 <body>
 
 <div class="app-container">
+  <!-- 상단 바 -->
   <div class="header">
     <div class="status-badge">
       <div id="statusDot" class="status-dot"></div>
-      <span id="statusText">연결 중...</span>
+      <span id="statusText">확인 중...</span>
     </div>
     <div class="pair-badge">
-      <span id="pairNames">미설정</span>
+      <span id="pairNames">DeskPet</span>
       <button class="gear-btn" onclick="openSettings()">⚙️</button>
     </div>
   </div>
 
+  <!-- 채팅 영역 -->
   <div id="chatArea" class="chat-area"></div>
 
+  <!-- 하단 컨트롤 -->
   <div class="bottom-controls">
     <div class="btn-grid">
       <button class="action-btn" onclick="sendAction('#CMD:HEART')"><span>❤️</span>하트</button>
@@ -134,27 +177,67 @@
     </div>
   </div>
 
-  <!-- 설정 모달 -->
-  <div id="settingsModal" class="modal-overlay">
+  <!-- 1. 앱 진입 잠금 화면 -->
+  <div id="lockModal" class="modal-overlay" style="display: none;">
+    <div class="modal-card" id="lockCard">
+      <div class="modal-title">🔒 DeskPet 보안 잠금</div>
+      <div class="modal-desc">접속 비밀번호를 입력해주세요.</div>
+      <div class="field-group">
+        <input type="password" id="inputLockPw" class="field-input" placeholder="비밀번호" style="text-align: center; font-size: 18px; letter-spacing: 4px;" onkeydown="if(event.key==='Enter') verifyLockPassword()">
+      </div>
+      <button class="modal-btn" onclick="verifyLockPassword()">잠금 해제</button>
+      <button class="link-btn" onclick="openForgotModal()">비밀번호를 잊으셨나요?</button>
+    </div>
+  </div>
+
+  <!-- 2. 비밀번호 분실 복구 모달 -->
+  <div id="forgotModal" class="modal-overlay" style="display: none;">
+    <div class="modal-card" id="forgotCard">
+      <div class="modal-title">🔑 암호 분실 복구</div>
+      <div class="modal-desc">기기에 설정된 <b>커플 연결 코드</b>를 입력하여 인증하세요.</div>
+      <div class="field-group">
+        <input type="text" id="inputVerifyPairCode" class="field-input uppercase" placeholder="예: CP-7K2M9X" style="text-align: center;">
+      </div>
+      <button class="modal-btn" onclick="verifyRecoveryPairCode()">인증 및 암호 초기화</button>
+      <button class="link-btn" onclick="closeForgotModal()">취소</button>
+    </div>
+  </div>
+
+  <!-- 3. 설정 모달 -->
+  <div id="settingsModal" class="modal-overlay" style="display: none;">
     <div class="modal-card">
-      <div class="modal-title">커플 채널 페어링 설정</div>
+      <div class="modal-title">커플 채널 & 보안 설정</div>
       
       <div class="field-group">
         <label class="field-label">커플 연결 코드</label>
-        <input type="text" id="inputPairCode" class="field-input" placeholder="예: CP-7K2M9X">
-        <p class="field-hint">※ 기기 초기 Wi-Fi 설정 포털에서 발급받은 코드를 입력하세요.</p>
+        <input type="text" id="inputPairCode" class="field-input uppercase" placeholder="예: CP-7K2M9X">
       </div>
 
       <div class="field-group">
         <label class="field-label">내 닉네임 (영문)</label>
-        <input type="text" id="inputMyName" class="field-input" placeholder="예: PARK">
+        <input type="text" id="inputMyName" class="field-input uppercase" placeholder="예: PARK">
       </div>
       <div class="field-group">
         <label class="field-label">상대방 닉네임 (영문)</label>
-        <input type="text" id="inputTargetName" class="field-input" placeholder="예: CHOI">
+        <input type="text" id="inputTargetName" class="field-input uppercase" placeholder="예: CHOI">
       </div>
 
-      <button class="modal-save-btn" onclick="saveSettings()">저장 및 재접속</button>
+      <!-- 암호 사용 활성화 / 비활성화 토글 -->
+      <div class="toggle-row">
+        <span class="field-label" style="margin:0;">접속 시 암호 잠금 사용</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="toggleUsePw" onchange="togglePwFieldState()">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="field-group" id="pwFieldWrap">
+        <label class="field-label">접속 비밀번호 설정</label>
+        <input type="password" id="inputNewAppPw" class="field-input" placeholder="비밀번호 입력">
+      </div>
+
+      <button class="modal-btn" onclick="saveSettings()">저장 및 재접속</button>
+      <button class="modal-btn" style="background: #334155; color: #fff; margin-top: 0;" onclick="closeSettings()">닫기</button>
     </div>
   </div>
 </div>
@@ -163,9 +246,86 @@
   let pairCode   = localStorage.getItem("deskpet_pair_code") || "";
   let myName     = localStorage.getItem("deskpet_my_name") || "PARK";
   let targetName = localStorage.getItem("deskpet_target_name") || "CHOI";
+  
+  // 보안 설정: 기본값 = 암호 사용 활성화(true), 기본 암호 1234
+  let usePw      = localStorage.getItem("deskpet_use_pw") !== "false"; 
+  let appPw      = localStorage.getItem("deskpet_app_pw") || "1234";
 
+  let isUnlocked = false;
   let client = null;
   let sentMessages = JSON.parse(localStorage.getItem("deskpet_chat_history") || "[]");
+
+  // 진입 검사
+  function checkEntrySecurity() {
+    if (usePw) {
+      document.getElementById("lockModal").style.display = "flex";
+      setTimeout(() => { document.getElementById("inputLockPw").focus(); }, 150);
+    } else {
+      // 암호 미사용 설정 시 즉시 잠금 해제 및 연결
+      isUnlocked = true;
+      document.getElementById("lockModal").style.display = "none";
+      updatePairHeader();
+      connectMQTT();
+    }
+  }
+
+  function verifyLockPassword() {
+    const input = document.getElementById("inputLockPw");
+    const entered = input.value.trim();
+
+    if (entered === appPw) {
+      isUnlocked = true;
+      document.getElementById("lockModal").style.display = "none";
+      updatePairHeader();
+      connectMQTT();
+    } else {
+      const card = document.getElementById("lockCard");
+      card.classList.add("shake");
+      input.value = "";
+      input.placeholder = "비밀번호 불일치!";
+      setTimeout(() => card.classList.remove("shake"), 300);
+    }
+  }
+
+  // 암호 분실 복구
+  function openForgotModal() {
+    document.getElementById("lockModal").style.display = "none";
+    document.getElementById("forgotModal").style.display = "flex";
+    document.getElementById("inputVerifyPairCode").value = "";
+  }
+
+  function closeForgotModal() {
+    document.getElementById("forgotModal").style.display = "none";
+    document.getElementById("lockModal").style.display = "flex";
+  }
+
+  function verifyRecoveryPairCode() {
+    const entered = document.getElementById("inputVerifyPairCode").value.trim().toUpperCase();
+    if (!entered) { alert("커플 연결 코드를 입력하세요."); return; }
+
+    // 기기에 등록된 커플 코드와 일치하는지 검증
+    if (entered === pairCode && pairCode.length > 0) {
+      alert("커플 코드 인증 성공!\n접속 암호가 초기화(1234)되었습니다. 설정창에서 암호를 변경하거나 해제하세요.");
+      appPw = "1234";
+      localStorage.setItem("deskpet_app_pw", appPw);
+      
+      document.getElementById("forgotModal").style.display = "none";
+      isUnlocked = true;
+      updatePairHeader();
+      connectMQTT();
+      openSettings();
+    } else {
+      const card = document.getElementById("forgotCard");
+      card.classList.add("shake");
+      alert("등록된 커플 연결 코드와 일치하지 않습니다.\n기기 초기 설정 포털(192.168.4.1)에서 설정한 코드를 입력해주세요.");
+      setTimeout(() => card.classList.remove("shake"), 300);
+    }
+  }
+
+  function togglePwFieldState() {
+    const enabled = document.getElementById("toggleUsePw").checked;
+    document.getElementById("pwFieldWrap").style.display = enabled ? "flex" : "none";
+  }
 
   function updatePairHeader() {
     if (!pairCode) {
@@ -176,7 +336,9 @@
   }
 
   function connectMQTT() {
+    if (!isUnlocked) return;
     updatePairHeader();
+
     if (!pairCode) {
       document.getElementById("statusDot").classList.remove("connected");
       document.getElementById("statusText").innerText = "코드 필요";
@@ -223,7 +385,8 @@
   }
 
   function sendText() {
-    if (!pairCode) { alert("우측 상단 ⚙️를 눌러 기기 포털에서 생성된 커플 코드를 먼저 입력해 주세요."); return; }
+    if (!isUnlocked) return;
+    if (!pairCode) { alert("우측 상단 ⚙️를 눌러 커플 코드를 먼저 설정해 주세요."); return; }
     const input = document.getElementById("msgInput");
     const text = input.value.trim();
     if (!text || !client || !client.isConnected()) return;
@@ -243,7 +406,8 @@
   }
 
   function sendAction(cmd) {
-    if (!pairCode) { alert("우측 상단 ⚙️를 눌러 기기 포털에서 생성된 커플 코드를 먼저 입력해 주세요."); return; }
+    if (!isUnlocked) return;
+    if (!pairCode) { alert("우측 상단 ⚙️를 눌러 커플 코드를 먼저 설정해 주세요."); return; }
     if (!client || !client.isConnected()) return;
 
     const destination = (cmd === "#CMD:RESET_FACE") ? myName : targetName;
@@ -295,36 +459,55 @@
   }
 
   function openSettings() {
+    if (!isUnlocked) return;
     document.getElementById("inputPairCode").value = pairCode;
     document.getElementById("inputMyName").value = myName;
     document.getElementById("inputTargetName").value = targetName;
+    document.getElementById("toggleUsePw").checked = usePw;
+    document.getElementById("inputNewAppPw").value = appPw;
+    togglePwFieldState();
     document.getElementById("settingsModal").style.display = "flex";
+  }
+
+  function closeSettings() {
+    document.getElementById("settingsModal").style.display = "none";
   }
 
   function saveSettings() {
     const newPair   = document.getElementById("inputPairCode").value.trim().toUpperCase();
     const newMy     = document.getElementById("inputMyName").value.trim().toUpperCase();
     const newTarget = document.getElementById("inputTargetName").value.trim().toUpperCase();
+    const newUsePw  = document.getElementById("toggleUsePw").checked;
+    const newPw     = document.getElementById("inputNewAppPw").value.trim();
+
     if (!newPair || !newMy || !newTarget) {
-      alert("모든 필드를 입력해 주세요.");
+      alert("연결 코드와 닉네임을 모두 입력해 주세요.");
+      return;
+    }
+    if (newUsePw && !newPw) {
+      alert("사용할 접속 비밀번호를 입력해 주세요.");
       return;
     }
 
     pairCode   = newPair;
     myName     = newMy;
     targetName = newTarget;
+    usePw      = newUsePw;
+    if (newUsePw) appPw = newPw;
 
     localStorage.setItem("deskpet_pair_code", pairCode);
     localStorage.setItem("deskpet_my_name", myName);
     localStorage.setItem("deskpet_target_name", targetName);
+    localStorage.setItem("deskpet_use_pw", usePw ? "true" : "false");
+    localStorage.setItem("deskpet_app_pw", appPw);
 
-    document.getElementById("settingsModal").style.display = "none";
+    closeSettings();
     if (client) client.disconnect();
     connectMQTT();
   }
 
   saveAndRenderChat();
-  connectMQTT();
+  checkEntrySecurity();
 </script>
 </body>
 </html>
