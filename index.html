@@ -10,7 +10,6 @@
       --bg-color: #0f172a;
       --card-bg: #1e293b;
       --accent: #38bdf8;
-      --accent-hover: #0284c7;
       --text-main: #f8fafc;
       --text-muted: #94a3b8;
       --bubble-sent: #fee500;
@@ -26,7 +25,6 @@
       background: var(--card-bg); position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.5);
     }
 
-    /* 상단 헤더 */
     .header {
       padding: 14px 18px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(10px);
       display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.08);
@@ -38,7 +36,6 @@
     .pair-badge { font-size: 13px; font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: 6px; }
     .gear-btn { background: none; border: none; font-size: 18px; cursor: pointer; padding: 4px; border-radius: 6px; }
 
-    /* 채팅 창 */
     .chat-area {
       flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;
     }
@@ -57,7 +54,6 @@
       background: #334155; color: #f1f5f9; border-radius: 14px; font-size: 13px;
     }
 
-    /* 하단 인터랙션 컨트롤 */
     .bottom-controls {
       padding: 12px 14px; background: rgba(15, 23, 42, 0.95); border-top: 1px solid rgba(255,255,255,0.08);
       display: flex; flex-direction: column; gap: 10px;
@@ -110,28 +106,25 @@
 <body>
 
 <div class="app-container">
-  <!-- 상단 바 -->
   <div class="header">
     <div class="status-badge">
       <div id="statusDot" class="status-dot"></div>
       <span id="statusText">연결 중...</span>
     </div>
     <div class="pair-badge">
-      <span id="pairNames">PARK ➜ CHOI</span>
+      <span id="pairNames">CP-7788 | PARK ➜ CHOI</span>
       <button class="gear-btn" onclick="openSettings()">⚙️</button>
     </div>
   </div>
 
-  <!-- 채팅 영역 -->
   <div id="chatArea" class="chat-area"></div>
 
-  <!-- 하단 컨트롤 -->
   <div class="bottom-controls">
     <div class="btn-grid">
       <button class="action-btn" onclick="sendAction('#CMD:HEART')"><span>❤️</span>하트</button>
       <button class="action-btn" onclick="sendAction('#CMD:TICKLE')"><span>👉</span>간질이기</button>
       <button class="action-btn" onclick="sendAction('#CMD:KNOCK')"><span>🔔</span>긴급호출</button>
-      <button class="action-btn" onclick="sendAction('#CMD:RESET_FACE')"><span>🔄</span>표정초기화</button>
+      <button class="action-btn" onclick="sendAction('#CMD:RESET_FACE')"><span>🔄</span>내 표정리셋</button>
     </div>
     <div class="input-row">
       <input type="text" id="msgInput" class="msg-input" placeholder="메시지 입력 (한글/영어)..." onkeydown="if(event.key==='Enter') sendText()">
@@ -142,7 +135,11 @@
   <!-- 설정 모달 -->
   <div id="settingsModal" class="modal-overlay">
     <div class="modal-card">
-      <div class="modal-title">닉네임 페어링 설정</div>
+      <div class="modal-title">커플 채널 페어링 설정</div>
+      <div class="field-group">
+        <label class="field-label">커플 연결 코드 (예: CP-7788)</label>
+        <input type="text" id="inputPairCode" class="field-input" placeholder="예: CP-7788">
+      </div>
       <div class="field-group">
         <label class="field-label">내 닉네임 (영문)</label>
         <input type="text" id="inputMyName" class="field-input" placeholder="예: PARK">
@@ -157,22 +154,23 @@
 </div>
 
 <script>
-  let myName = localStorage.getItem("deskpet_my_name") || "PARK";
+  let pairCode   = localStorage.getItem("deskpet_pair_code") || "CP-7788";
+  let myName     = localStorage.getItem("deskpet_my_name") || "PARK";
   let targetName = localStorage.getItem("deskpet_target_name") || "CHOI";
 
   let client = null;
   let sentMessages = JSON.parse(localStorage.getItem("deskpet_chat_history") || "[]");
 
   function updatePairHeader() {
-    document.getElementById("pairNames").innerText = `${myName} ➜ ${targetName}`;
+    document.getElementById("pairNames").innerText = `${pairCode} | ${myName} ➜ ${targetName}`;
   }
 
   function connectMQTT() {
     updatePairHeader();
-    const clientId = "WebRemote-" + myName + "-" + Math.random().toString(16).substring(2, 8);
+    const clientId = "WebRemote-" + pairCode + "-" + myName + "-" + Math.random().toString(16).substring(2, 8);
     client = new Paho.MQTT.Client("broker.hivemq.com", 8884, "/mqtt", clientId);
 
-    client.onConnectionLost = (responseObject) => {
+    client.onConnectionLost = () => {
       document.getElementById("statusDot").classList.remove("connected");
       document.getElementById("statusText").innerText = "연결 끊김";
       setTimeout(connectMQTT, 3000);
@@ -180,7 +178,6 @@
 
     client.onMessageArrived = (message) => {
       const payload = message.payloadString;
-      // 상대방 보드가 확인 후 전송한 수신 확인 ACK 처리
       if (payload.startsWith("#ACK:")) {
         const ackId = payload.substring(5).trim();
         const found = sentMessages.find(m => m.id === ackId);
@@ -198,9 +195,9 @@
       onSuccess: () => {
         document.getElementById("statusDot").classList.add("connected");
         document.getElementById("statusText").innerText = "연결됨";
-        // 상대방 보드가 보내는 ACK 수신 (상대 보드의 pubTopic 구독)
-        const subTopic = "my_deskpet_2026/dev_" + myName;
-        client.subscribe(subTopic);
+        // 내 수신 토픽 구독 (ACK 수신용)
+        const mySubTopic = `deskpet_2026/${pairCode}/dev_${myName}`;
+        client.subscribe(mySubTopic);
       },
       onFailure: () => {
         document.getElementById("statusDot").classList.remove("connected");
@@ -217,7 +214,7 @@
 
     const msgId = "m_" + Date.now();
     const payload = `#ID:${msgId}#${text}`;
-    const pubTopic = "my_deskpet_2026/dev_" + targetName;
+    const pubTopic = `deskpet_2026/${pairCode}/dev_${targetName}`;
 
     const message = new Paho.MQTT.Message(payload);
     message.destinationName = pubTopic;
@@ -229,25 +226,26 @@
     input.value = "";
   }
 
-function sendAction(cmd) {
-  if (!client || !client.isConnected()) return;
+  function sendAction(cmd) {
+    if (!client || !client.isConnected()) return;
 
-  const destination = (cmd === "#CMD:RESET_FACE") ? myName : targetName;
-  const pubTopic = "my_deskpet_2026/dev_" + destination;
+    // 표정 리셋은 내 보드로, 하트/간질임/긴급호출은 상대방 보드로 발송
+    const destination = (cmd === "#CMD:RESET_FACE") ? myName : targetName;
+    const pubTopic = `deskpet_2026/${pairCode}/dev_${destination}`;
 
-  const message = new Paho.MQTT.Message(cmd);
-  message.destinationName = pubTopic;
-  client.send(message);
+    const message = new Paho.MQTT.Message(cmd);
+    message.destinationName = pubTopic;
+    client.send(message);
 
-  let label = "명령 전송";
-  if (cmd === "#CMD:HEART") label = "❤️ 하트를 보냈습니다";
-  if (cmd === "#CMD:TICKLE") label = "👉 간질이기를 보냈습니다";
-  if (cmd === "#CMD:KNOCK") label = "🔔 긴급 호출을 보냈습니다";
-  if (cmd === "#CMD:RESET_FACE") label = "🔄 내 표정을 초기화했습니다"; // 안내 문구 변경
+    let label = "명령 전송";
+    if (cmd === "#CMD:HEART") label = "❤️ 하트를 보냈습니다";
+    if (cmd === "#CMD:TICKLE") label = "👉 간질이기를 보냈습니다";
+    if (cmd === "#CMD:KNOCK") label = "🔔 긴급 호출을 보냈습니다";
+    if (cmd === "#CMD:RESET_FACE") label = "🔄 내 표정을 초기화했습니다";
 
-  sentMessages.push({ id: "cmd_" + Date.now(), text: label, read: true, isAction: true });
-  saveAndRenderChat();
-}
+    sentMessages.push({ id: "cmd_" + Date.now(), text: label, read: true, isAction: true });
+    saveAndRenderChat();
+  }
 
   function saveAndRenderChat() {
     localStorage.setItem("deskpet_chat_history", JSON.stringify(sentMessages));
@@ -281,18 +279,23 @@ function sendAction(cmd) {
   }
 
   function openSettings() {
+    document.getElementById("inputPairCode").value = pairCode;
     document.getElementById("inputMyName").value = myName;
     document.getElementById("inputTargetName").value = targetName;
     document.getElementById("settingsModal").style.display = "flex";
   }
 
   function saveSettings() {
-    const newMy = document.getElementById("inputMyName").value.trim().toUpperCase();
+    const newPair   = document.getElementById("inputPairCode").value.trim().toUpperCase();
+    const newMy     = document.getElementById("inputMyName").value.trim().toUpperCase();
     const newTarget = document.getElementById("inputTargetName").value.trim().toUpperCase();
-    if (!newMy || !newTarget) return;
+    if (!newPair || !newMy || !newTarget) return;
 
-    myName = newMy;
+    pairCode   = newPair;
+    myName     = newMy;
     targetName = newTarget;
+
+    localStorage.setItem("deskpet_pair_code", pairCode);
     localStorage.setItem("deskpet_my_name", myName);
     localStorage.setItem("deskpet_target_name", targetName);
 
