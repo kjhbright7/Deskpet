@@ -2,961 +2,304 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>DeskPet Chat & Remote</title>
-
-  <!-- PWA 모바일 전체화면 설정 -->
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="DeskPet">
-  <meta name="theme-color" content="#0f172a">
-
-  <!-- MQTT.js 라이브러리 -->
-  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-
-  <!-- [PWA 동적 아이콘 & 매니페스트 생성 엔진] -->
-  <script>
-    (function() {
-      function createDeskPetIcon(size) {
-        const canvas = document.createElement('canvas');
-        canvas.width = size;
-        canvas.height = size;
-        const ctx = canvas.getContext('2d');
-        const s = size / 192;
-
-        ctx.fillStyle = '#0f172a';
-        ctx.beginPath();
-        ctx.roundRect(0, 0, size, size, 40 * s);
-        ctx.fill();
-
-        ctx.strokeStyle = '#38bdf8';
-        ctx.lineWidth = 6 * s;
-        ctx.stroke();
-
-        ctx.fillStyle = '#f8fafc';
-        ctx.beginPath();
-        ctx.roundRect(40 * s, 55 * s, 36 * s, 48 * s, 18 * s);
-        ctx.roundRect(116 * s, 55 * s, 36 * s, 48 * s, 18 * s);
-        ctx.fill();
-
-        ctx.fillStyle = '#0f172a';
-        ctx.beginPath();
-        ctx.arc(50 * s, 68 * s, 8 * s, 0, Math.PI * 2);
-        ctx.arc(126 * s, 68 * s, 8 * s, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.strokeStyle = '#f43f5e';
-        ctx.lineWidth = 4 * s;
-        ctx.lineCap = 'round';
-        ctx.beginPath();
-        ctx.moveTo(25 * s, 115 * s); ctx.lineTo(35 * s, 105 * s);
-        ctx.moveTo(35 * s, 115 * s); ctx.lineTo(45 * s, 105 * s);
-        ctx.moveTo(147 * s, 115 * s); ctx.lineTo(157 * s, 105 * s);
-        ctx.moveTo(157 * s, 115 * s); ctx.lineTo(167 * s, 105 * s);
-        ctx.stroke();
-
-        ctx.strokeStyle = '#f8fafc';
-        ctx.lineWidth = 5 * s;
-        ctx.beginPath();
-        ctx.arc(88 * s, 115 * s, 8 * s, 0, Math.PI * 0.8, false);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.arc(104 * s, 115 * s, 8 * s, Math.PI * 0.2, Math.PI, false);
-        ctx.stroke();
-
-        return canvas.toDataURL('image/png');
-      }
-
-      const icon192 = createDeskPetIcon(192);
-      const icon512 = createDeskPetIcon(512);
-
-      const appleIcon = document.createElement('link');
-      appleIcon.rel = 'apple-touch-icon';
-      appleIcon.href = icon192;
-      document.head.appendChild(appleIcon);
-
-      const favicon = document.createElement('link');
-      favicon.rel = 'icon';
-      favicon.type = 'image/png';
-      favicon.href = icon192;
-      document.head.appendChild(favicon);
-
-      const manifestObj = {
-        name: "DeskPet Remote",
-        short_name: "DeskPet",
-        start_url: "./index.html",
-        display: "standalone",
-        background_color: "#0f172a",
-        theme_color: "#0f172a",
-        orientation: "portrait",
-        icons: [
-          { src: icon192, sizes: "192x192", type: "image/png", purpose: "any maskable" },
-          { src: icon512, sizes: "512x512", type: "image/png", purpose: "any maskable" }
-        ]
-      };
-      const manifestBlob = new Blob([JSON.stringify(manifestObj)], { type: 'application/json' });
-      const manifestLink = document.createElement('link');
-      manifestLink.rel = 'manifest';
-      manifestLink.href = URL.createObjectURL(manifestBlob);
-      document.head.appendChild(manifestLink);
-    })();
-  </script>
-
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>DeskPet Remote</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
   <style>
     :root {
       --bg-color: #0f172a;
       --card-bg: #1e293b;
+      --accent: #38bdf8;
+      --accent-hover: #0284c7;
       --text-main: #f8fafc;
-      --text-sub: #94a3b8;
-      --primary: #38bdf8;
-      --accent-heart: #f43f5e;
-      --accent-tickle: #fbbf24;
-      --accent-knock: #ef4444;
-      --border: #334155;
-      --kakao-yellow: #fee500;
-      --kakao-text: #191919;
-      --bubble-other: #334155;
-      --bubble-time: #64748b;
-      --unread-badge: #ffe812;
+      --text-muted: #94a3b8;
+      --bubble-sent: #fee500;
+      --bubble-text: #191919;
+      --unread-color: #facc15;
     }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      -webkit-tap-highlight-color: transparent;
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background-color: var(--bg-color); color: var(--text-main); display: flex; justify-content: center; min-height: 100vh; }
+    
+    .app-container {
+      width: 100%; max-width: 480px; height: 100vh; display: flex; flex-direction: column;
+      background: var(--card-bg); position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.5);
     }
 
-    body {
-      background-color: var(--bg-color);
-      color: var(--text-main);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      padding: 16px;
-      padding-top: max(16px, env(safe-area-inset-top));
-      padding-bottom: max(16px, env(safe-area-inset-bottom));
-    }
-
-    .app-layout {
-      width: 100%;
-      max-width: 900px;
-      display: grid;
-      grid-template-columns: 1.15fr 0.85fr;
-      gap: 20px;
-    }
-
-    @media (max-width: 768px) {
-      .app-layout {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    .panel {
-      background-color: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 24px;
-      padding: 24px;
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
-      display: flex;
-      flex-direction: column;
-    }
-
-    /* --- [좌측: 카카오톡 스타일 채팅방] --- */
-    .chat-panel {
-      height: 580px;
-    }
-
-    .chat-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding-bottom: 14px;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .chat-header h2 {
-      font-size: 1.1rem;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .btn-clear-chat {
-      background: transparent;
-      border: 1px solid var(--border);
-      color: var(--text-sub);
-      font-size: 0.75rem;
-      padding: 5px 10px;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .btn-clear-chat:hover {
-      border-color: var(--accent-knock);
-      color: var(--accent-knock);
-    }
-
-    .chat-messages {
-      flex: 1;
-      overflow-y: auto;
-      padding: 16px 4px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    .chat-messages::-webkit-scrollbar {
-      width: 6px;
-    }
-    .chat-messages::-webkit-scrollbar-thumb {
-      background: var(--border);
-      border-radius: 3px;
-    }
-
-    .msg-group {
-      display: flex;
-      flex-direction: column;
-      max-width: 80%;
-    }
-
-    .msg-group.my {
-      align-self: flex-end;
-      align-items: flex-end;
-    }
-
-    .msg-group.other {
-      align-self: flex-start;
-      align-items: flex-start;
-    }
-
-    .sender-name {
-      font-size: 0.75rem;
-      color: var(--text-sub);
-      margin-bottom: 4px;
-      padding: 0 4px;
-    }
-
-    .bubble-row {
-      display: flex;
-      align-items: flex-end;
-      gap: 6px;
-    }
-
-    .msg-group.my .bubble-row {
-      flex-direction: row-reverse;
-    }
-
-    .bubble {
-      padding: 10px 14px;
-      border-radius: 18px;
-      font-size: 0.95rem;
-      line-height: 1.4;
-      word-break: break-all;
-      position: relative;
-    }
-
-    .msg-group.my .bubble {
-      background-color: var(--kakao-yellow);
-      color: var(--kakao-text);
-      border-bottom-right-radius: 4px;
-    }
-
-    .msg-group.other .bubble {
-      background-color: var(--bubble-other);
-      color: var(--text-main);
-      border-bottom-left-radius: 4px;
-    }
-
-    .bubble.action-heart {
-      background: #ffe4e6 !important;
-      color: #e11d48 !important;
-      font-weight: 600;
-    }
-    .bubble.action-tickle {
-      background: #fef3c7 !important;
-      color: #d97706 !important;
-      font-weight: 600;
-    }
-    .bubble.action-knock {
-      background: #fee2e2 !important;
-      color: #b91c1c !important;
-      font-weight: 700;
-    }
-
-    .meta-col {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      gap: 2px;
-      margin-bottom: 2px;
-    }
-
-    .msg-group.my .meta-col {
-      align-items: flex-end;
-    }
-
-    .msg-group.other .meta-col {
-      align-items: flex-start;
-    }
-
-    .unread-badge {
-      font-size: 0.75rem;
-      font-weight: 800;
-      color: var(--unread-badge);
-      line-height: 1;
-      display: inline-block;
-      transition: opacity 0.3s;
-    }
-
-    .unread-badge.read {
-      display: none;
-    }
-
-    .msg-time {
-      font-size: 0.7rem;
-      color: var(--bubble-time);
-      white-space: nowrap;
-    }
-
-    /* --- [우측: 리모트 패널] --- */
-    .remote-panel {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
+    /* 상단 헤더 */
     .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+      padding: 14px 18px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(10px);
+      display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .status-badge { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
+    .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #ef4444; transition: background 0.3s; }
+    .status-dot.connected { background: #22c55e; box-shadow: 0 0 8px #22c55e; }
+    
+    .pair-badge { font-size: 13px; font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: 6px; }
+    .gear-btn { background: none; border: none; font-size: 18px; cursor: pointer; padding: 4px; border-radius: 6px; }
+
+    /* 채팅 창 */
+    .chat-area {
+      flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;
+    }
+    .msg-row { display: flex; flex-direction: column; align-items: flex-end; }
+    .msg-bubble-wrap { display: flex; align-items: flex-end; gap: 6px; }
+    
+    .unread-badge {
+      color: var(--unread-color); font-size: 11px; font-weight: 800; line-height: 1; margin-bottom: 3px;
+    }
+    .msg-bubble {
+      max-width: 260px; padding: 10px 14px; border-radius: 16px 4px 16px 16px;
+      background: var(--bubble-sent); color: var(--bubble-text); font-size: 14px; line-height: 1.4;
+      word-break: break-all; font-weight: 500; box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    .msg-bubble.action {
+      background: #334155; color: #f1f5f9; border-radius: 14px; font-size: 13px;
     }
 
-    .header h1 {
-      font-size: 1.2rem;
-      font-weight: 700;
-      letter-spacing: -0.5px;
+    /* 하단 인터랙션 컨트롤 */
+    .bottom-controls {
+      padding: 12px 14px; background: rgba(15, 23, 42, 0.95); border-top: 1px solid rgba(255,255,255,0.08);
+      display: flex; flex-direction: column; gap: 10px;
     }
 
-    .status-badge {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 0.8rem;
-      color: var(--text-sub);
-      background: rgba(255, 255, 255, 0.05);
-      padding: 4px 10px;
-      border-radius: 9999px;
+    .btn-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
     }
-
-    .status-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background-color: #ef4444;
-    }
-
-    .status-dot.connected {
-      background-color: #10b981;
-      box-shadow: 0 0 8px #10b981;
-    }
-
-    /* 프로필 및 타겟 선택 섹션 */
-    .selector-label {
-      font-size: 0.78rem;
-      font-weight: 600;
-      color: var(--text-sub);
-      margin-bottom: 6px;
-      display: flex;
-      justify-content: space-between;
-    }
-
-    .selector-box {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      background: #0f172a;
-      padding: 4px;
-      border-radius: 12px;
-      gap: 4px;
-      border: 1px solid var(--border);
-    }
-
-    .toggle-btn {
-      background: transparent;
-      border: none;
-      color: var(--text-sub);
-      padding: 8px;
-      font-size: 0.88rem;
-      font-weight: 700;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-
-    .toggle-btn.active {
-      background: var(--card-bg);
-      color: var(--primary);
-      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-    }
-
-    .msg-box {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    textarea {
-      width: 100%;
-      height: 85px;
-      background: #0f172a;
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 12px;
-      color: var(--text-main);
-      font-size: 0.95rem;
-      resize: none;
-      outline: none;
-      transition: border-color 0.2s;
-    }
-
-    textarea:focus {
-      border-color: var(--primary);
-    }
-
-    .send-msg-btn {
-      background: var(--primary);
-      color: #0f172a;
-      border: none;
-      padding: 12px;
-      border-radius: 12px;
-      font-weight: 700;
-      font-size: 0.95rem;
-      cursor: pointer;
-      transition: transform 0.1s;
-    }
-
-    .send-msg-btn:active {
-      transform: scale(0.98);
-    }
-
-    .action-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
-
     .action-btn {
-      background: #0f172a;
-      border: 1px solid var(--border);
-      color: var(--text-main);
-      padding: 13px;
-      border-radius: 14px;
-      font-size: 0.88rem;
-      font-weight: 600;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      transition: all 0.2s;
+      background: #334155; border: 1px solid rgba(255,255,255,0.05); color: #f8fafc;
+      padding: 8px 4px; border-radius: 10px; font-size: 11px; font-weight: 600;
+      display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; transition: 0.15s;
+    }
+    .action-btn:active { transform: scale(0.95); background: #475569; }
+    .action-btn span { font-size: 16px; }
+
+    .input-row { display: flex; gap: 8px; }
+    .msg-input {
+      flex: 1; padding: 12px 14px; border-radius: 12px; border: 1px solid #334155;
+      background: #0f172a; color: #fff; font-size: 14px; outline: none;
+    }
+    .msg-input:focus { border-color: var(--accent); }
+    .send-btn {
+      background: var(--accent); border: none; color: #0f172a; font-weight: 700;
+      padding: 0 16px; border-radius: 12px; cursor: pointer; font-size: 14px;
     }
 
-    .action-btn:active {
-      transform: scale(0.96);
+    /* 설정 모달 */
+    .modal-overlay {
+      position: absolute; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+      display: none; justify-content: center; align-items: center; z-index: 100;
     }
-
-    .btn-heart:hover, .btn-heart:active {
-      border-color: var(--accent-heart);
-      color: var(--accent-heart);
+    .modal-card {
+      width: 86%; max-width: 340px; background: #1e293b; border-radius: 18px; padding: 20px;
+      display: flex; flex-direction: column; gap: 14px; border: 1px solid rgba(255,255,255,0.1);
     }
-
-    .btn-tickle:hover, .btn-tickle:active {
-      border-color: var(--accent-tickle);
-      color: var(--accent-tickle);
+    .modal-title { font-size: 16px; font-weight: 700; color: #fff; text-align: center; }
+    .field-group { display: flex; flex-direction: column; gap: 6px; }
+    .field-label { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+    .field-input {
+      padding: 10px 12px; border-radius: 10px; border: 1px solid #334155; background: #0f172a;
+      color: #fff; font-size: 14px; text-transform: uppercase;
     }
-
-    .btn-knock {
-      grid-column: span 2;
-      border-color: rgba(239, 68, 68, 0.4);
-    }
-
-    .btn-knock:hover, .btn-knock:active {
-      border-color: var(--accent-knock);
-      color: var(--accent-knock);
-      background: rgba(239, 68, 68, 0.05);
-    }
-
-    .btn-reset {
-      grid-column: span 2;
-      font-size: 0.8rem;
-      color: var(--text-sub);
-      padding: 10px;
-      background: transparent;
-      border: 1px dashed var(--border);
-    }
-
-    /* --- [보안 잠금 모달] --- */
-    .auth-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: rgba(15, 23, 42, 0.92);
-      backdrop-filter: blur(12px);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      z-index: 9999;
-      padding: 16px;
-    }
-
-    .auth-card {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 28px 24px;
-      width: 100%;
-      max-width: 320px;
-      text-align: center;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
-    }
-
-    .auth-card h2 {
-      font-size: 1.15rem;
-      margin-bottom: 8px;
-    }
-
-    .auth-card p {
-      font-size: 0.85rem;
-      color: var(--text-sub);
-      margin-bottom: 20px;
-    }
-
-    .pin-input {
-      width: 100%;
-      padding: 12px;
-      font-size: 1.2rem;
-      text-align: center;
-      letter-spacing: 6px;
-      background: #0f172a;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      color: var(--text-main);
-      outline: none;
-      margin-bottom: 16px;
-    }
-
-    .pin-input:focus {
-      border-color: var(--primary);
-    }
-
-    .auth-btn {
-      width: 100%;
-      padding: 12px;
-      background: var(--primary);
-      color: #0f172a;
-      border: none;
-      border-radius: 12px;
-      font-weight: 700;
-      cursor: pointer;
-    }
-
-    @keyframes shake {
-      0%, 100% { transform: translateX(0); }
-      20%, 60% { transform: translateX(-8px); }
-      40%, 80% { transform: translateX(8px); }
-    }
-
-    .shake {
-      animation: shake 0.4s ease-in-out;
-      border-color: var(--accent-knock) !important;
+    .modal-save-btn {
+      background: var(--accent); border: none; color: #0f172a; font-weight: 700;
+      padding: 12px; border-radius: 10px; cursor: pointer; font-size: 14px; margin-top: 6px;
     }
   </style>
 </head>
 <body>
 
-  <!-- 보안 암호 인증 모달 -->
-  <div class="auth-overlay" id="authOverlay">
-    <div class="auth-card" id="authCard">
-      <h2>🔒 접속 암호 입력</h2>
-      <p>등록된 암호를 입력해야 조작이 가능합니다.</p>
-      <input type="password" id="pinInput" class="pin-input" placeholder="••••••••" maxlength="12" autofocus>
-      <button class="auth-btn" onclick="checkPassword()">확인</button>
+<div class="app-container">
+  <!-- 상단 바 -->
+  <div class="header">
+    <div class="status-badge">
+      <div id="statusDot" class="status-dot"></div>
+      <span id="statusText">연결 중...</span>
+    </div>
+    <div class="pair-badge">
+      <span id="pairNames">PARK ➜ CHOI</span>
+      <button class="gear-btn" onclick="openSettings()">⚙️</button>
     </div>
   </div>
 
-  <div class="app-layout">
-    <!-- [좌측: 카카오톡 스타일 대화 목록 패널] -->
-    <div class="panel chat-panel">
-      <div class="chat-header">
-        <h2>💬 대화 목록</h2>
-        <button class="btn-clear-chat" onclick="clearChatHistory()">대화 목록 초기화 🗑️</button>
-      </div>
-      <div class="chat-messages" id="chatMessages">
-        <!-- 말풍선 출력 영역 -->
-      </div>
+  <!-- 채팅 영역 -->
+  <div id="chatArea" class="chat-area"></div>
+
+  <!-- 하단 컨트롤 -->
+  <div class="bottom-controls">
+    <div class="btn-grid">
+      <button class="action-btn" onclick="sendAction('#CMD:HEART')"><span>❤️</span>하트</button>
+      <button class="action-btn" onclick="sendAction('#CMD:TICKLE')"><span>👉</span>간질이기</button>
+      <button class="action-btn" onclick="sendAction('#CMD:KNOCK')"><span>🔔</span>긴급호출</button>
+      <button class="action-btn" onclick="sendAction('#CMD:RESET_FACE')"><span>🔄</span>표정초기화</button>
     </div>
-
-    <!-- [우측: 리모트 컨트롤 패널] -->
-    <div class="panel remote-panel">
-      <div class="header">
-        <h1>🐾 DeskPet Controller</h1>
-        <div class="status-badge">
-          <div class="status-dot" id="statusDot"></div>
-          <span id="statusText">연결 중...</span>
-        </div>
-      </div>
-
-      <!-- ★ 1. 내 프로필 설정 (나는 누구인가: KIM / JI) -->
-      <div>
-        <div class="selector-label">
-          <span>내 프로필 (이 기기의 사용자)</span>
-          <span id="targetNoticeText" style="color: var(--primary);">상대방: JI</span>
-        </div>
-        <div class="selector-box">
-          <button class="toggle-btn" id="btnMyKIM" onclick="setMyIdentity('KIM')">나는 KIM</button>
-          <button class="toggle-btn" id="btnMyJI" onclick="setMyIdentity('JI')">나는 JI</button>
-        </div>
-      </div>
-
-      <!-- 메시지 전송 영역 -->
-      <div class="msg-box">
-        <textarea id="msgInput" placeholder="전송할 메시지나 자모(ㅋㅋ, ㅠㅠ)를 입력하세요..."></textarea>
-        <button class="send-msg-btn" id="sendBtn" onclick="sendMessage()">JI에게 메시지 전송 ✉️</button>
-      </div>
-
-      <!-- 인터랙션 조작 그리드 -->
-      <div class="action-grid">
-        <button class="action-btn btn-heart" onclick="sendAction('#CMD:HEART')">
-          <span>❤️</span> 하트 날리기
-        </button>
-        <button class="action-btn btn-tickle" onclick="sendAction('#CMD:TICKLE')">
-          <span>✨</span> 간질이기
-        </button>
-        <button class="action-btn btn-knock" onclick="sendAction('#CMD:KNOCK')">
-          <span>🚨</span> 똑똑! 긴급 호출
-        </button>
-        <button class="action-btn btn-reset" onclick="sendAction('#CMD:RESET_FACE')">
-          🔄 표정 & 인박스 초기화
-        </button>
-      </div>
+    <div class="input-row">
+      <input type="text" id="msgInput" class="msg-input" placeholder="메시지 입력 (한글/영어)..." onkeydown="if(event.key==='Enter') sendText()">
+      <button class="send-btn" onclick="sendText()">전송</button>
     </div>
   </div>
 
-  <script>
-    // ================= [설정] =================
-    const SECRET_PIN = "0928"; 
-    const BROKER_URL = "wss://broker.hivemq.com:8884/mqtt";
-    const BASE_TOPIC = "my_deskpet_2026/dev_";
+  <!-- 설정 모달 -->
+  <div id="settingsModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-title">닉네임 페어링 설정</div>
+      <div class="field-group">
+        <label class="field-label">내 닉네임 (영문)</label>
+        <input type="text" id="inputMyName" class="field-input" placeholder="예: PARK">
+      </div>
+      <div class="field-group">
+        <label class="field-label">상대방 닉네임 (영문)</label>
+        <input type="text" id="inputTargetName" class="field-input" placeholder="예: CHOI">
+      </div>
+      <button class="modal-save-btn" onclick="saveSettings()">저장 및 재접속</button>
+    </div>
+  </div>
+</div>
 
-    // ★ 내 프로필 (localStorage 저장 및 복원, 기본값: KIM)
-    let myIdentity = localStorage.getItem("deskpet_my_id") || "KIM";
-    let client = null;
+<script>
+  let myName = localStorage.getItem("deskpet_my_name") || "PARK";
+  let targetName = localStorage.getItem("deskpet_target_name") || "CHOI";
 
-    // --- [1. 보안 패스워드 검증] ---
-    function checkPassword() {
-      const pin = document.getElementById("pinInput").value;
-      const card = document.getElementById("authCard");
+  let client = null;
+  let sentMessages = JSON.parse(localStorage.getItem("deskpet_chat_history") || "[]");
 
-      if (pin === SECRET_PIN) {
-        sessionStorage.setItem("deskpet_auth", "true");
-        document.getElementById("authOverlay").style.display = "none";
-        initApp();
-      } else {
-        card.classList.add("shake");
-        document.getElementById("pinInput").value = "";
-        setTimeout(() => card.classList.remove("shake"), 400);
+  function updatePairHeader() {
+    document.getElementById("pairNames").innerText = `${myName} ➜ ${targetName}`;
+  }
+
+  function connectMQTT() {
+    updatePairHeader();
+    const clientId = "WebRemote-" + myName + "-" + Math.random().toString(16).substring(2, 8);
+    client = new Paho.MQTT.Client("broker.hivemq.com", 8884, "/mqtt", clientId);
+
+    client.onConnectionLost = (responseObject) => {
+      document.getElementById("statusDot").classList.remove("connected");
+      document.getElementById("statusText").innerText = "연결 끊김";
+      setTimeout(connectMQTT, 3000);
+    };
+
+    client.onMessageArrived = (message) => {
+      const payload = message.payloadString;
+      // 상대방 보드가 확인 후 전송한 수신 확인 ACK 처리
+      if (payload.startsWith("#ACK:")) {
+        const ackId = payload.substring(5).trim();
+        const found = sentMessages.find(m => m.id === ackId);
+        if (found) {
+          found.read = true;
+          saveAndRenderChat();
+        }
       }
-    }
+    };
 
-    document.getElementById("pinInput").addEventListener("keypress", (e) => {
-      if (e.key === "Enter") checkPassword();
-    });
-
-    window.addEventListener("DOMContentLoaded", () => {
-      if (sessionStorage.getItem("deskpet_auth") === "true") {
-        document.getElementById("authOverlay").style.display = "none";
-        initApp();
-      }
-    });
-
-    function initApp() {
-      updateIdentityUI();
-      loadChatHistory();
-      initMQTT();
-    }
-
-    // --- [2. 내 프로필 설정 (KIM / JI)] ---
-    function setMyIdentity(id) {
-      myIdentity = id;
-      localStorage.setItem("deskpet_my_id", id);
-      updateIdentityUI();
-      loadChatHistory(); // 프로필 변경 시 말풍선 좌우 배치 재렌더링
-    }
-
-    function updateIdentityUI() {
-      const isKIM = (myIdentity === "KIM");
-      document.getElementById("btnMyKIM").classList.toggle("active", isKIM);
-      document.getElementById("btnMyJI").classList.toggle("active", !isKIM);
-
-      const target = isKIM ? "JI" : "KIM";
-      document.getElementById("targetNoticeText").innerText = `상대방: ${target}`;
-      document.getElementById("sendBtn").innerText = `${target}에게 메시지 전송 ✉️`;
-    }
-
-    // --- [3. MQTT 통신 초기화] ---
-    function initMQTT() {
-      const clientId = "WebClient-" + Math.random().toString(16).substring(2, 8);
-      client = mqtt.connect(BROKER_URL, {
-        clientId: clientId,
-        clean: true,
-        connectTimeout: 5000
-      });
-
-      client.on("connect", () => {
+    client.connect({
+      useSSL: true,
+      timeout: 5,
+      keepAliveInterval: 20,
+      onSuccess: () => {
         document.getElementById("statusDot").classList.add("connected");
         document.getElementById("statusText").innerText = "연결됨";
-
-        // 양방향 실시간 메시지 및 ACK 수신을 위해 KIM, JI 토픽 모두 구독
-        client.subscribe(BASE_TOPIC + "KIM");
-        client.subscribe(BASE_TOPIC + "JI");
-      });
-
-      client.on("offline", () => {
+        // 상대방 보드가 보내는 ACK 수신 (상대 보드의 pubTopic 구독)
+        const subTopic = "my_deskpet_2026/dev_" + myName;
+        client.subscribe(subTopic);
+      },
+      onFailure: () => {
         document.getElementById("statusDot").classList.remove("connected");
-        document.getElementById("statusText").innerText = "연결 끊김";
-      });
-
-      // 브로커로부터 메시지 수신 처리
-      client.on("message", (topic, payload) => {
-        const text = payload.toString();
-
-        // 1) 보드가 보낸 읽음 확인(ACK) 수신 -> 숫자 1 제거
-        if (text.startsWith("#ACK:")) {
-          const ackMsgId = text.replace("#ACK:", "").trim();
-          markMessageAsRead(ackMsgId);
-          return;
-        }
-
-        const receiver = topic.replace(BASE_TOPIC, "");
-        const sender = (receiver === "KIM") ? "JI" : "KIM";
-
-        // 2) 일반 메시지 수신
-        let cleanText = text;
-        let incomingId = null;
-        if (cleanText.startsWith("#ID:")) {
-          const endIdx = cleanText.indexOf("#", 4);
-          if (endIdx !== -1) {
-            incomingId = cleanText.substring(4, endIdx);
-            cleanText = cleanText.substring(endIdx + 1);
-          }
-        }
-
-        addMessageToChat(sender, receiver, cleanText, false, incomingId);
-      });
-    }
-
-    function sendRaw(target, content) {
-      if (!client || !client.connected) {
-        alert("MQTT 브로커에 연결되지 않았습니다. 잠시 후 다시 시도해 주세요.");
-        return;
-      }
-      const topic = BASE_TOPIC + target;
-      client.publish(topic, content, { qos: 0 });
-    }
-
-    // 텍스트 메시지 발송 (#ID:msgId#메시지)
-    function sendMessage() {
-      const input = document.getElementById("msgInput");
-      const msg = input.value.trim();
-      if (!msg) return;
-
-      const sender = myIdentity; // 내 프로필이 발신자
-      const receiver = (myIdentity === "KIM") ? "JI" : "KIM"; // 상대방이 수신자
-      const msgId = "m_" + Date.now();
-      const payload = `#ID:${msgId}#${msg}`;
-
-      sendRaw(receiver, payload);
-      // 웹 채팅창에 무조건 1(안읽음) 상태로 표시
-      addMessageToChat(sender, receiver, msg, true, msgId);
-      input.value = "";
-    }
-
-    // 인터랙션 명령 발송
-    function sendAction(actionCmd) {
-      const sender = myIdentity;
-      const receiver = (myIdentity === "KIM") ? "JI" : "KIM";
-      sendRaw(receiver, actionCmd);
-      addMessageToChat(sender, receiver, actionCmd, true, null);
-    }
-
-    document.getElementById("msgInput").addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        sendMessage();
+        document.getElementById("statusText").innerText = "재연결 중...";
+        setTimeout(connectMQTT, 3000);
       }
     });
+  }
 
-    // --- [4. 채팅 렌더링 & 읽음 확인 엔진] ---
-    function getTimeString() {
-      const now = new Date();
-      let hours = now.getHours();
-      const minutes = String(now.getMinutes()).padStart(2, '0');
-      const ampm = hours >= 12 ? '오후' : '오전';
-      hours = hours % 12;
-      hours = hours ? hours : 12;
-      return `${ampm} ${hours}:${minutes}`;
-    }
+  function sendText() {
+    const input = document.getElementById("msgInput");
+    const text = input.value.trim();
+    if (!text || !client || !client.isConnected()) return;
 
-    function addMessageToChat(sender, receiver, text, isSelfOrigin, msgId) {
-      const timeStr = getTimeString();
-      const isAction = text.startsWith("#CMD:");
-      const isMy = (sender === myIdentity);
-      const needsBadge = isMy && !isAction;
+    const msgId = "m_" + Date.now();
+    const payload = `#ID:${msgId}#${text}`;
+    const pubTopic = "my_deskpet_2026/dev_" + targetName;
 
-      const msgObj = {
-        id: msgId || ("auto_" + Date.now()),
-        sender: sender,
-        receiver: receiver,
-        text: text,
-        time: timeStr,
-        read: !needsBadge // 내가 보낸 일반 텍스트만 '1' 뱃지 대상
-      };
+    const message = new Paho.MQTT.Message(payload);
+    message.destinationName = pubTopic;
+    client.send(message);
 
-      const history = getSavedHistory();
-      if (!isSelfOrigin && history.length > 0) {
-        const last = history[history.length - 1];
-        if (last.text === text && last.sender === sender && last.receiver === receiver) {
-          return;
-        }
+    sentMessages.push({ id: msgId, text: text, read: false, time: Date.now() });
+    if (sentMessages.length > 20) sentMessages.shift();
+    saveAndRenderChat();
+    input.value = "";
+  }
+
+  function sendAction(cmd) {
+    if (!client || !client.isConnected()) return;
+    const pubTopic = "my_deskpet_2026/dev_" + targetName;
+    const message = new Paho.MQTT.Message(cmd);
+    message.destinationName = pubTopic;
+    client.send(message);
+
+    let label = "명령 전송";
+    if (cmd === "#CMD:HEART") label = "❤️ 하트를 보냈습니다";
+    if (cmd === "#CMD:TICKLE") label = "👉 간질이기를 보냈습니다";
+    if (cmd === "#CMD:KNOCK") label = "🔔 긴급 호출을 보냈습니다";
+    if (cmd === "#CMD:RESET_FACE") label = "🔄 표정을 초기화했습니다";
+
+    sentMessages.push({ id: "cmd_" + Date.now(), text: label, read: true, isAction: true });
+    saveAndRenderChat();
+  }
+
+  function saveAndRenderChat() {
+    localStorage.setItem("deskpet_chat_history", JSON.stringify(sentMessages));
+    const area = document.getElementById("chatArea");
+    area.innerHTML = "";
+
+    sentMessages.forEach(m => {
+      const row = document.createElement("div");
+      row.className = "msg-row";
+
+      const wrap = document.createElement("div");
+      wrap.className = "msg-bubble-wrap";
+
+      if (!m.isAction && !m.read) {
+        const badge = document.createElement("span");
+        badge.className = "unread-badge";
+        badge.innerText = "1";
+        wrap.appendChild(badge);
       }
 
-      renderMessageBubble(msgObj);
-      saveMessageToStorage(msgObj);
-    }
+      const bubble = document.createElement("div");
+      bubble.className = "msg-bubble" + (m.isAction ? " action" : "");
+      bubble.innerText = m.text;
+      wrap.appendChild(bubble);
 
-    function renderMessageBubble(msg) {
-      const chatBox = document.getElementById("chatMessages");
-      // ★ 현재 접속자(myIdentity)가 보낸 글이면 우측 노란 말풍선
-      const isMy = (msg.sender === myIdentity);
+      row.appendChild(wrap);
+      area.appendChild(row);
+    });
 
-      const groupDiv = document.createElement("div");
-      groupDiv.className = `msg-group ${isMy ? 'my' : 'other'}`;
-      groupDiv.id = `bubble_${msg.id}`;
+    area.scrollTop = area.scrollHeight;
+  }
 
-      if (!isMy) {
-        const nameDiv = document.createElement("div");
-        nameDiv.className = "sender-name";
-        nameDiv.innerText = msg.sender;
-        groupDiv.appendChild(nameDiv);
-      }
+  function openSettings() {
+    document.getElementById("inputMyName").value = myName;
+    document.getElementById("inputTargetName").value = targetName;
+    document.getElementById("settingsModal").style.display = "flex";
+  }
 
-      const rowDiv = document.createElement("div");
-      rowDiv.className = "bubble-row";
+  function saveSettings() {
+    const newMy = document.getElementById("inputMyName").value.trim().toUpperCase();
+    const newTarget = document.getElementById("inputTargetName").value.trim().toUpperCase();
+    if (!newMy || !newTarget) return;
 
-      const bubbleDiv = document.createElement("div");
-      bubbleDiv.className = "bubble";
+    myName = newMy;
+    targetName = newTarget;
+    localStorage.setItem("deskpet_my_name", myName);
+    localStorage.setItem("deskpet_target_name", targetName);
 
-      if (msg.text === "#CMD:HEART") {
-        bubbleDiv.classList.add("action-heart");
-        bubbleDiv.innerText = "❤️ 하트를 보냈습니다!";
-      } else if (msg.text === "#CMD:TICKLE") {
-        bubbleDiv.classList.add("action-tickle");
-        bubbleDiv.innerText = "✨ 간질이기를 보냈습니다!";
-      } else if (msg.text === "#CMD:KNOCK") {
-        bubbleDiv.classList.add("action-knock");
-        bubbleDiv.innerText = "🚨 똑똑!! 긴급 호출을 보냈습니다!";
-      } else if (msg.text === "#CMD:RESET_FACE") {
-        bubbleDiv.innerText = "🔄 표정 및 보관함을 초기화했습니다.";
-      } else {
-        bubbleDiv.innerText = msg.text;
-      }
+    document.getElementById("settingsModal").style.display = "none";
+    if (client) client.disconnect();
+    connectMQTT();
+  }
 
-      const metaDiv = document.createElement("div");
-      metaDiv.className = "meta-col";
-
-      // 내가 보낸 일반 텍스트일 때 노란색 숫자 1 표시
-      if (isMy && !msg.text.startsWith("#CMD:")) {
-        const badgeSpan = document.createElement("span");
-        badgeSpan.className = `unread-badge ${msg.read ? 'read' : ''}`;
-        badgeSpan.id = `badge_${msg.id}`;
-        badgeSpan.innerText = "1";
-        metaDiv.appendChild(badgeSpan);
-      }
-
-      const timeDiv = document.createElement("div");
-      timeDiv.className = "msg-time";
-      timeDiv.innerText = msg.time;
-      metaDiv.appendChild(timeDiv);
-
-      rowDiv.appendChild(bubbleDiv);
-      rowDiv.appendChild(metaDiv);
-      groupDiv.appendChild(rowDiv);
-
-      chatBox.appendChild(groupDiv);
-      chatBox.scrollTop = chatBox.scrollHeight;
-    }
-
-    function markMessageAsRead(msgId) {
-      const badge = document.getElementById(`badge_${msgId}`);
-      if (badge) {
-        badge.classList.add("read");
-      }
-
-      const history = getSavedHistory();
-      let modified = false;
-      history.forEach(item => {
-        if (item.id === msgId) {
-          item.read = true;
-          modified = true;
-        }
-      });
-      if (modified) {
-        localStorage.setItem("deskpet_chat_history", JSON.stringify(history));
-      }
-    }
-
-    // --- [5. 로컬 스토리지 관리] ---
-    function getSavedHistory() {
-      try {
-        return JSON.parse(localStorage.getItem("deskpet_chat_history")) || [];
-      } catch (e) {
-        return [];
-      }
-    }
-
-    function saveMessageToStorage(msgObj) {
-      const history = getSavedHistory();
-      history.push(msgObj);
-      if (history.length > 100) history.shift();
-      localStorage.setItem("deskpet_chat_history", JSON.stringify(history));
-    }
-
-    function loadChatHistory() {
-      const history = getSavedHistory();
-      const chatBox = document.getElementById("chatMessages");
-      chatBox.innerHTML = "";
-      history.forEach(renderMessageBubble);
-    }
-
-    function clearChatHistory() {
-      if (confirm("대화 목록을 모두 지우시겠습니까?")) {
-        localStorage.removeItem("deskpet_chat_history");
-        document.getElementById("chatMessages").innerHTML = "";
-      }
-    }
-
-    // 서비스 워커 등록
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("sw.js")
-        .then(() => console.log("PWA Service Worker Registered"))
-        .catch((err) => console.log("SW Registration Failed:", err));
-    }
-  </script>
+  saveAndRenderChat();
+  connectMQTT();
+</script>
 </body>
 </html>
