@@ -229,22 +229,25 @@
     input.value = "";
   }
 
-  function sendAction(cmd) {
-    if (!client || !client.isConnected()) return;
-    const pubTopic = "my_deskpet_2026/dev_" + targetName;
-    const message = new Paho.MQTT.Message(cmd);
-    message.destinationName = pubTopic;
-    client.send(message);
+function sendAction(cmd) {
+  if (!client || !client.isConnected()) return;
 
-    let label = "명령 전송";
-    if (cmd === "#CMD:HEART") label = "❤️ 하트를 보냈습니다";
-    if (cmd === "#CMD:TICKLE") label = "👉 간질이기를 보냈습니다";
-    if (cmd === "#CMD:KNOCK") label = "🔔 긴급 호출을 보냈습니다";
-    if (cmd === "#CMD:RESET_FACE") label = "🔄 표정을 초기화했습니다";
+  const destination = (cmd === "#CMD:RESET_FACE") ? myName : targetName;
+  const pubTopic = "my_deskpet_2026/dev_" + destination;
 
-    sentMessages.push({ id: "cmd_" + Date.now(), text: label, read: true, isAction: true });
-    saveAndRenderChat();
-  }
+  const message = new Paho.MQTT.Message(cmd);
+  message.destinationName = pubTopic;
+  client.send(message);
+
+  let label = "명령 전송";
+  if (cmd === "#CMD:HEART") label = "❤️ 하트를 보냈습니다";
+  if (cmd === "#CMD:TICKLE") label = "👉 간질이기를 보냈습니다";
+  if (cmd === "#CMD:KNOCK") label = "🔔 긴급 호출을 보냈습니다";
+  if (cmd === "#CMD:RESET_FACE") label = "🔄 내 표정을 초기화했습니다"; // 안내 문구 변경
+
+  sentMessages.push({ id: "cmd_" + Date.now(), text: label, read: true, isAction: true });
+  saveAndRenderChat();
+}
 
   function saveAndRenderChat() {
     localStorage.setItem("deskpet_chat_history", JSON.stringify(sentMessages));
