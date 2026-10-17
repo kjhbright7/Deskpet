@@ -87,7 +87,7 @@
       display: none; justify-content: center; align-items: center; z-index: 100;
     }
     .modal-card {
-      width: 86%; max-width: 340px; background: #1e293b; border-radius: 18px; padding: 20px;
+      width: 86%; max-width: 340px; background: #1e293b; border-radius: 18px; padding: 22px;
       display: flex; flex-direction: column; gap: 14px; border: 1px solid rgba(255,255,255,0.1);
     }
     .modal-title { font-size: 16px; font-weight: 700; color: #fff; text-align: center; }
@@ -95,8 +95,10 @@
     .field-label { font-size: 12px; color: var(--text-muted); font-weight: 600; }
     .field-input {
       padding: 10px 12px; border-radius: 10px; border: 1px solid #334155; background: #0f172a;
-      color: #fff; font-size: 14px; text-transform: uppercase;
+      color: #fff; font-size: 14px; text-transform: uppercase; font-weight: 600;
     }
+    .field-hint { font-size: 11px; color: #64748b; line-height: 1.3; margin-top: -2px; }
+
     .modal-save-btn {
       background: var(--accent); border: none; color: #0f172a; font-weight: 700;
       padding: 12px; border-radius: 10px; cursor: pointer; font-size: 14px; margin-top: 6px;
@@ -112,7 +114,7 @@
       <span id="statusText">연결 중...</span>
     </div>
     <div class="pair-badge">
-      <span id="pairNames">CP-7788 | PARK ➜ CHOI</span>
+      <span id="pairNames">미설정</span>
       <button class="gear-btn" onclick="openSettings()">⚙️</button>
     </div>
   </div>
@@ -136,10 +138,13 @@
   <div id="settingsModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-title">커플 채널 페어링 설정</div>
+      
       <div class="field-group">
-        <label class="field-label">커플 연결 코드 (예: CP-7788)</label>
-        <input type="text" id="inputPairCode" class="field-input" placeholder="예: CP-7788">
+        <label class="field-label">커플 연결 코드</label>
+        <input type="text" id="inputPairCode" class="field-input" placeholder="예: CP-7K2M9X">
+        <p class="field-hint">※ 기기 초기 Wi-Fi 설정 포털에서 발급받은 코드를 입력하세요.</p>
       </div>
+
       <div class="field-group">
         <label class="field-label">내 닉네임 (영문)</label>
         <input type="text" id="inputMyName" class="field-input" placeholder="예: PARK">
@@ -148,13 +153,14 @@
         <label class="field-label">상대방 닉네임 (영문)</label>
         <input type="text" id="inputTargetName" class="field-input" placeholder="예: CHOI">
       </div>
+
       <button class="modal-save-btn" onclick="saveSettings()">저장 및 재접속</button>
     </div>
   </div>
 </div>
 
 <script>
-  let pairCode   = localStorage.getItem("deskpet_pair_code") || "CP-7788";
+  let pairCode   = localStorage.getItem("deskpet_pair_code") || "";
   let myName     = localStorage.getItem("deskpet_my_name") || "PARK";
   let targetName = localStorage.getItem("deskpet_target_name") || "CHOI";
 
@@ -162,11 +168,21 @@
   let sentMessages = JSON.parse(localStorage.getItem("deskpet_chat_history") || "[]");
 
   function updatePairHeader() {
-    document.getElementById("pairNames").innerText = `${pairCode} | ${myName} ➜ ${targetName}`;
+    if (!pairCode) {
+      document.getElementById("pairNames").innerText = "코드 미설정 (⚙️ 터치)";
+    } else {
+      document.getElementById("pairNames").innerText = `${pairCode} | ${myName} ➜ ${targetName}`;
+    }
   }
 
   function connectMQTT() {
     updatePairHeader();
+    if (!pairCode) {
+      document.getElementById("statusDot").classList.remove("connected");
+      document.getElementById("statusText").innerText = "코드 필요";
+      return;
+    }
+
     const clientId = "WebRemote-" + pairCode + "-" + myName + "-" + Math.random().toString(16).substring(2, 8);
     client = new Paho.MQTT.Client("broker.hivemq.com", 8884, "/mqtt", clientId);
 
@@ -195,7 +211,6 @@
       onSuccess: () => {
         document.getElementById("statusDot").classList.add("connected");
         document.getElementById("statusText").innerText = "연결됨";
-        // 내 수신 토픽 구독 (ACK 수신용)
         const mySubTopic = `deskpet_2026/${pairCode}/dev_${myName}`;
         client.subscribe(mySubTopic);
       },
@@ -208,6 +223,7 @@
   }
 
   function sendText() {
+    if (!pairCode) { alert("우측 상단 ⚙️를 눌러 기기 포털에서 생성된 커플 코드를 먼저 입력해 주세요."); return; }
     const input = document.getElementById("msgInput");
     const text = input.value.trim();
     if (!text || !client || !client.isConnected()) return;
@@ -227,9 +243,9 @@
   }
 
   function sendAction(cmd) {
+    if (!pairCode) { alert("우측 상단 ⚙️를 눌러 기기 포털에서 생성된 커플 코드를 먼저 입력해 주세요."); return; }
     if (!client || !client.isConnected()) return;
 
-    // 표정 리셋은 내 보드로, 하트/간질임/긴급호출은 상대방 보드로 발송
     const destination = (cmd === "#CMD:RESET_FACE") ? myName : targetName;
     const pubTopic = `deskpet_2026/${pairCode}/dev_${destination}`;
 
@@ -289,7 +305,10 @@
     const newPair   = document.getElementById("inputPairCode").value.trim().toUpperCase();
     const newMy     = document.getElementById("inputMyName").value.trim().toUpperCase();
     const newTarget = document.getElementById("inputTargetName").value.trim().toUpperCase();
-    if (!newPair || !newMy || !newTarget) return;
+    if (!newPair || !newMy || !newTarget) {
+      alert("모든 필드를 입력해 주세요.");
+      return;
+    }
 
     pairCode   = newPair;
     myName     = newMy;
