@@ -41,7 +41,7 @@
     .noti-btn { background: none; border: none; font-size: 16px; cursor: pointer; padding: 2px; }
     .gear-btn { background: none; border: none; font-size: 18px; cursor: pointer; padding: 2px; border-radius: 6px; }
 
-    /* 알림 권한 권장 배너 */
+    /* 알림 배너 */
     .noti-banner {
       background: #0284c7; color: #fff; padding: 10px 14px; font-size: 12px; font-weight: 600;
       display: none; justify-content: space-between; align-items: center;
@@ -56,49 +56,31 @@
       flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;
     }
 
-    /* 발신 메시지 (우측 노란색) */
-    .msg-row.sent {
-      display: flex; flex-direction: column; align-items: flex-end;
-    }
-    .msg-row.sent .msg-bubble-wrap {
-      display: flex; align-items: flex-end; gap: 6px;
-    }
+    .msg-row.sent { display: flex; flex-direction: column; align-items: flex-end; }
+    .msg-row.sent .msg-bubble-wrap { display: flex; align-items: flex-end; gap: 6px; }
     .msg-row.sent .msg-bubble {
       max-width: 260px; padding: 10px 14px; border-radius: 16px 4px 16px 16px;
       background: var(--bubble-sent); color: var(--bubble-sent-text); font-size: 14px; line-height: 1.4;
       word-break: break-all; font-weight: 500; box-shadow: 0 2px 8px rgba(0,0,0,0.2);
     }
 
-    /* 수신 메시지 (좌측 어두운 슬레이트) */
-    .msg-row.recv {
-      display: flex; flex-direction: column; align-items: flex-start;
-    }
-    .msg-sender {
-      font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px; margin-left: 2px;
-    }
+    .msg-row.recv { display: flex; flex-direction: column; align-items: flex-start; }
+    .msg-sender { font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px; margin-left: 2px; }
     .msg-row.recv .msg-bubble {
       max-width: 260px; padding: 10px 14px; border-radius: 4px 16px 16px 16px;
       background: var(--bubble-recv); color: var(--bubble-recv-text); font-size: 14px; line-height: 1.4;
       word-break: break-all; font-weight: 500; box-shadow: 0 2px 8px rgba(0,0,0,0.2);
     }
 
-    .unread-badge {
-      color: var(--unread-color); font-size: 11px; font-weight: 800; line-height: 1; margin-bottom: 3px;
-    }
-    
-    .msg-bubble.action {
-      background: #334155 !important; color: #f1f5f9 !important; border-radius: 14px !important; font-size: 13px !important;
-    }
+    .unread-badge { color: var(--unread-color); font-size: 11px; font-weight: 800; line-height: 1; margin-bottom: 3px; }
+    .msg-bubble.action { background: #334155 !important; color: #f1f5f9 !important; border-radius: 14px !important; font-size: 13px !important; }
 
     /* 하단 컨트롤 */
     .bottom-controls {
       padding: 12px 14px; background: rgba(15, 23, 42, 0.95); border-top: 1px solid rgba(255,255,255,0.08);
       display: flex; flex-direction: column; gap: 10px;
     }
-
-    .btn-grid {
-      display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
-    }
+    .btn-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
     .action-btn {
       background: #334155; border: 1px solid rgba(255,255,255,0.05); color: #f8fafc;
       padding: 8px 4px; border-radius: 10px; font-size: 11px; font-weight: 600;
@@ -140,12 +122,8 @@
     .field-input:focus { border-color: var(--accent); }
     .field-input.uppercase { text-transform: uppercase; font-weight: 600; }
 
-    .toggle-row {
-      display: flex; justify-content: space-between; align-items: center; padding: 4px 0;
-    }
-    .toggle-switch {
-      position: relative; display: inline-block; width: 44px; height: 24px;
-    }
+    .toggle-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; }
+    .toggle-switch { position: relative; display: inline-block; width: 44px; height: 24px; }
     .toggle-switch input { opacity: 0; width: 0; height: 0; }
     .slider {
       position: absolute; cursor: pointer; inset: 0; background-color: #334155;
@@ -168,7 +146,6 @@
       background: none; border: none; color: #94a3b8; font-size: 12px; text-decoration: underline;
       cursor: pointer; text-align: center; margin-top: 4px;
     }
-    .link-btn:hover { color: var(--accent); }
 
     .shake { animation: shakeAnim 0.3s ease-in-out; }
     @keyframes shakeAnim {
@@ -181,7 +158,7 @@
 <body>
 
 <div class="app-container">
-  <!-- 상단 바 -->
+  <!-- 상단 헤더 -->
   <div class="header">
     <div class="status-badge">
       <div id="statusDot" class="status-dot"></div>
@@ -276,6 +253,7 @@
       </div>
 
       <button class="modal-btn" onclick="saveSettings()">저장 및 재접속</button>
+      <button class="modal-btn" style="background: #e11d48; color: #fff; margin-top: 0;" onclick="manualLock()">🔒 지금 즉시 잠그기</button>
       <button class="modal-btn" style="background: #334155; color: #fff; margin-top: 0;" onclick="closeSettings()">닫기</button>
     </div>
   </div>
@@ -289,11 +267,47 @@
   let usePw      = localStorage.getItem("deskpet_use_pw") !== "false"; 
   let appPw      = localStorage.getItem("deskpet_app_pw") || "1234";
 
+  // ★ 새로고침 시 로그인 유지 플래그 (세션 동안 유지)
+  let sessionUnlocked = sessionStorage.getItem("deskpet_unlocked") === "true";
   let isUnlocked = false;
+
   let client = null;
   let chatHistory = JSON.parse(localStorage.getItem("deskpet_chat_history") || "[]");
+  let swRegistration = null;
 
-  // ---------------- [웹 상단 배너 알림 & 진동 엔진] ----------------
+  // ---------------- [안드로이드 전용 서비스 워커 인라인 등록] ----------------
+  function initServiceWorker() {
+    if ('serviceWorker' in navigator) {
+      // 별도 sw.js 파일 없이 가상 서비스 워커 블롭 등록 (안드로이드 푸시 호환)
+      const swCode = `
+        self.addEventListener('install', e => self.skipWaiting());
+        self.addEventListener('activate', e => clients.claim());
+        self.addEventListener('notificationclick', e => {
+          e.notification.close();
+          e.waitUntil(
+            clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
+              for (const client of clientList) {
+                if ('focus' in client) return client.focus();
+              }
+              if (clients.openWindow) return clients.openWindow('/');
+            })
+          );
+        });
+      `;
+      const blob = new Blob([swCode], { type: 'application/javascript' });
+      const swUrl = URL.createObjectURL(blob);
+
+      navigator.serviceWorker.register(swUrl)
+        .then(reg => {
+          swRegistration = reg;
+        })
+        .catch(err => {
+          console.log("SW Reg Fail:", err);
+        });
+    }
+  }
+
+  // ---------------- [알림 권한 및 발송 엔진] ----------------
   function checkNotificationStatus() {
     if (!("Notification" in window)) {
       document.getElementById("notiBtn").style.display = "none";
@@ -314,18 +328,18 @@
     Notification.requestPermission().then(permission => {
       checkNotificationStatus();
       if (permission === "granted") {
-        notifyIncomingMessage("🐾 DeskPet", "알림이 성공적으로 활성화되었습니다!", true);
+        notifyIncomingMessage("🐾 DeskPet", "상단 배너 알림이 활성화되었습니다!", true);
       }
     });
   }
 
   function notifyIncomingMessage(sender, text, isAction = false) {
-    // 1. 스마트폰 진동 울림 (200ms 울림, 100ms 쉼, 200ms 울림)
+    // 1. 모바일 진동 실행
     if ("vibrate" in navigator) {
       try { navigator.vibrate([200, 100, 200]); } catch(e) {}
     }
 
-    // 2. 알림 권한 체크
+    // 2. 알림 권한 없으면 중단
     if (!("Notification" in window) || Notification.permission !== "granted") return;
 
     let title = sender;
@@ -339,36 +353,38 @@
       body: bodyText,
       icon: "https://cdn-icons-png.flaticon.com/512/616/616430.png",
       badge: "https://cdn-icons-png.flaticon.com/512/616/616430.png",
-      tag: "deskpet-" + Date.now(),
-      vibrate: [200, 100, 200]
+      vibrate: [200, 100, 200],
+      tag: "deskpet-alert",
+      renotify: true
     };
 
-    try {
-      const notification = new Notification(title, options);
-      notification.onclick = function() {
-        window.focus();
-        this.close();
-      };
-    } catch (e) {
-      if (navigator.serviceWorker && navigator.serviceWorker.ready) {
-        navigator.serviceWorker.ready.then(reg => {
-          reg.showNotification(title, options);
-        });
-      }
+    // 안드로이드 크롬 표준: ServiceWorkerRegistration.showNotification 호출
+    if (swRegistration && swRegistration.showNotification) {
+      swRegistration.showNotification(title, options);
+    } else if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+      navigator.serviceWorker.ready.then(reg => {
+        reg.showNotification(title, options);
+      });
+    } else {
+      try { new Notification(title, options); } catch(e) {}
     }
   }
 
-  // ---------------- [보안 & 초기화] ----------------
+  // ---------------- [새로고침 유지 보안 로직] ----------------
   function checkEntrySecurity() {
+    initServiceWorker();
     checkNotificationStatus();
-    if (usePw) {
-      document.getElementById("lockModal").style.display = "flex";
-      setTimeout(() => { document.getElementById("inputLockPw").focus(); }, 150);
-    } else {
+
+    // 암호 미사용 설정이거나, 이미 이번 세션에서 한 번 풀었던 경우 -> 즉시 진입!
+    if (!usePw || sessionUnlocked) {
       isUnlocked = true;
       document.getElementById("lockModal").style.display = "none";
       updatePairHeader();
       connectMQTT();
+    } else {
+      // 진짜로 잠긴 상태
+      document.getElementById("lockModal").style.display = "flex";
+      setTimeout(() => { document.getElementById("inputLockPw").focus(); }, 150);
     }
   }
 
@@ -378,10 +394,11 @@
 
     if (entered === appPw) {
       isUnlocked = true;
+      sessionStorage.setItem("deskpet_unlocked", "true"); // ★ 새로고침해도 유지되도록 기록
       document.getElementById("lockModal").style.display = "none";
       updatePairHeader();
       connectMQTT();
-      requestNotificationPermission(); // 진입 시 알림 권한 팝업 자동 트리거
+      requestNotificationPermission();
     } else {
       const card = document.getElementById("lockCard");
       card.classList.add("shake");
@@ -389,6 +406,13 @@
       input.placeholder = "비밀번호 불일치!";
       setTimeout(() => card.classList.remove("shake"), 300);
     }
+  }
+
+  function manualLock() {
+    sessionStorage.removeItem("deskpet_unlocked");
+    isUnlocked = false;
+    closeSettings();
+    document.getElementById("lockModal").style.display = "flex";
   }
 
   function openForgotModal() {
@@ -410,6 +434,7 @@
       alert("커플 코드 인증 성공!\n접속 암호가 초기화(1234)되었습니다.");
       appPw = "1234";
       localStorage.setItem("deskpet_app_pw", appPw);
+      sessionStorage.setItem("deskpet_unlocked", "true");
       
       document.getElementById("forgotModal").style.display = "none";
       isUnlocked = true;
@@ -437,7 +462,7 @@
     }
   }
 
-  // ---------------- [MQTT 통신] ----------------
+  // ---------------- [MQTT 통신 엔진] ----------------
   function connectMQTT() {
     if (!isUnlocked) return;
     updatePairHeader();
@@ -482,7 +507,7 @@
         chatHistory.push({ id: "cmd_" + Date.now(), text: label, sender: 'other', isAction: true, time: Date.now() });
         saveAndRenderChat();
 
-        // 상단 배너 알림 및 진동 울림
+        // 스마트폰 상단 배너 알림 트리거
         notifyIncomingMessage(targetName, label, true);
         return;
       }
@@ -493,7 +518,7 @@
 
       if (payload.startsWith("#ID:")) {
         const secondHash = payload.indexOf('#', 4);
-        if (secondHash !== -1) {
+        if (secondHash != -1) {
           msgId = payload.substring(4, secondHash);
           cleanMsg = payload.substring(secondHash + 1);
         }
@@ -677,4 +702,3 @@
 </script>
 </body>
 </html>
-
