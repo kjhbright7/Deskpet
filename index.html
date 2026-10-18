@@ -36,15 +36,27 @@
     .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #ef4444; transition: background 0.3s; }
     .status-dot.connected { background: #22c55e; box-shadow: 0 0 8px #22c55e; }
     
-    .pair-badge { font-size: 13px; font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: 6px; }
-    .gear-btn { background: none; border: none; font-size: 18px; cursor: pointer; padding: 4px; border-radius: 6px; }
+    .header-right { display: flex; align-items: center; gap: 10px; }
+    .pair-badge { font-size: 13px; font-weight: 700; color: var(--accent); }
+    .noti-btn { background: none; border: none; font-size: 16px; cursor: pointer; padding: 2px; }
+    .gear-btn { background: none; border: none; font-size: 18px; cursor: pointer; padding: 2px; border-radius: 6px; }
+
+    /* 알림 권한 권장 배너 */
+    .noti-banner {
+      background: #0284c7; color: #fff; padding: 10px 14px; font-size: 12px; font-weight: 600;
+      display: none; justify-content: space-between; align-items: center;
+    }
+    .noti-banner button {
+      background: #0f172a; color: #fff; border: none; padding: 4px 10px; border-radius: 6px;
+      font-size: 11px; font-weight: 700; cursor: pointer;
+    }
 
     /* 채팅 영역 */
     .chat-area {
       flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;
     }
 
-    /* 내가 보낸 메시지 (우측 정렬) */
+    /* 발신 메시지 (우측 노란색) */
     .msg-row.sent {
       display: flex; flex-direction: column; align-items: flex-end;
     }
@@ -57,7 +69,7 @@
       word-break: break-all; font-weight: 500; box-shadow: 0 2px 8px rgba(0,0,0,0.2);
     }
 
-    /* 상대방이 보낸 메시지 (좌측 정렬) */
+    /* 수신 메시지 (좌측 어두운 슬레이트) */
     .msg-row.recv {
       display: flex; flex-direction: column; align-items: flex-start;
     }
@@ -75,10 +87,10 @@
     }
     
     .msg-bubble.action {
-      background: #334155; color: #f1f5f9; border-radius: 14px; font-size: 13px;
+      background: #334155 !important; color: #f1f5f9 !important; border-radius: 14px !important; font-size: 13px !important;
     }
 
-    /* 하단 인터랙션 컨트롤 */
+    /* 하단 컨트롤 */
     .bottom-controls {
       padding: 12px 14px; background: rgba(15, 23, 42, 0.95); border-top: 1px solid rgba(255,255,255,0.08);
       display: flex; flex-direction: column; gap: 10px;
@@ -175,10 +187,17 @@
       <div id="statusDot" class="status-dot"></div>
       <span id="statusText">확인 중...</span>
     </div>
-    <div class="pair-badge">
-      <span id="pairNames">DeskPet</span>
+    <div class="header-right">
+      <span id="pairNames" class="pair-badge">DeskPet</span>
+      <button class="noti-btn" id="notiBtn" onclick="requestNotificationPermission()" title="알림 권한">🔔</button>
       <button class="gear-btn" onclick="openSettings()">⚙️</button>
     </div>
+  </div>
+
+  <!-- 알림 권한 유도 배너 -->
+  <div id="notiBanner" class="noti-banner">
+    <span>상단 팝업 알림을 켜두시겠어요?</span>
+    <button onclick="requestNotificationPermission()">알림 켜기</button>
   </div>
 
   <!-- 채팅 영역 -->
@@ -274,7 +293,74 @@
   let client = null;
   let chatHistory = JSON.parse(localStorage.getItem("deskpet_chat_history") || "[]");
 
+  // ---------------- [웹 상단 배너 알림 & 진동 엔진] ----------------
+  function checkNotificationStatus() {
+    if (!("Notification" in window)) {
+      document.getElementById("notiBtn").style.display = "none";
+      return;
+    }
+    if (Notification.permission === "default") {
+      document.getElementById("notiBanner").style.display = "flex";
+    } else {
+      document.getElementById("notiBanner").style.display = "none";
+    }
+  }
+
+  function requestNotificationPermission() {
+    if (!("Notification" in window)) {
+      alert("이 브라우저는 웹 알림을 지원하지 않습니다.");
+      return;
+    }
+    Notification.requestPermission().then(permission => {
+      checkNotificationStatus();
+      if (permission === "granted") {
+        notifyIncomingMessage("🐾 DeskPet", "알림이 성공적으로 활성화되었습니다!", true);
+      }
+    });
+  }
+
+  function notifyIncomingMessage(sender, text, isAction = false) {
+    // 1. 스마트폰 진동 울림 (200ms 울림, 100ms 쉼, 200ms 울림)
+    if ("vibrate" in navigator) {
+      try { navigator.vibrate([200, 100, 200]); } catch(e) {}
+    }
+
+    // 2. 알림 권한 체크
+    if (!("Notification" in window) || Notification.permission !== "granted") return;
+
+    let title = sender;
+    let bodyText = text;
+    if (isAction) {
+      title = "🐾 DeskPet 인터랙션";
+      bodyText = text;
+    }
+
+    const options = {
+      body: bodyText,
+      icon: "https://cdn-icons-png.flaticon.com/512/616/616430.png",
+      badge: "https://cdn-icons-png.flaticon.com/512/616/616430.png",
+      tag: "deskpet-" + Date.now(),
+      vibrate: [200, 100, 200]
+    };
+
+    try {
+      const notification = new Notification(title, options);
+      notification.onclick = function() {
+        window.focus();
+        this.close();
+      };
+    } catch (e) {
+      if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+        navigator.serviceWorker.ready.then(reg => {
+          reg.showNotification(title, options);
+        });
+      }
+    }
+  }
+
+  // ---------------- [보안 & 초기화] ----------------
   function checkEntrySecurity() {
+    checkNotificationStatus();
     if (usePw) {
       document.getElementById("lockModal").style.display = "flex";
       setTimeout(() => { document.getElementById("inputLockPw").focus(); }, 150);
@@ -295,6 +381,7 @@
       document.getElementById("lockModal").style.display = "none";
       updatePairHeader();
       connectMQTT();
+      requestNotificationPermission(); // 진입 시 알림 권한 팝업 자동 트리거
     } else {
       const card = document.getElementById("lockCard");
       card.classList.add("shake");
@@ -344,12 +431,13 @@
 
   function updatePairHeader() {
     if (!pairCode) {
-      document.getElementById("pairNames").innerText = "코드 미설정 (⚙️ 터치)";
+      document.getElementById("pairNames").innerText = "코드 미설정";
     } else {
       document.getElementById("pairNames").innerText = `${pairCode} | ${myName} ➜ ${targetName}`;
     }
   }
 
+  // ---------------- [MQTT 통신] ----------------
   function connectMQTT() {
     if (!isUnlocked) return;
     updatePairHeader();
@@ -369,11 +457,10 @@
       setTimeout(connectMQTT, 3000);
     };
 
-    // ★ [핵심] 상대방 메시지 및 수신 확인(ACK) 통합 처리 로직
     client.onMessageArrived = (message) => {
       const payload = message.payloadString;
 
-      // 1. 상대방 보드가 메시지를 확인했을 때 보낸 수신 확인 ACK
+      // 1. 수신 확인 ACK
       if (payload.startsWith("#ACK:")) {
         const ackId = payload.substring(5).trim();
         const found = chatHistory.find(m => m.id === ackId && m.sender === 'me');
@@ -384,20 +471,23 @@
         return;
       }
 
-      // 2. 상대방이 보낸 인터랙션 명령
+      // 2. 상대방 인터랙션 수신
       if (payload.startsWith("#CMD:")) {
         let label = "명령 수신";
         if (payload === "#CMD:HEART") label = "❤️ " + targetName + "님이 하트를 보냈습니다!";
         if (payload === "#CMD:TICKLE") label = "👉 " + targetName + "님이 간질였습니다!";
         if (payload === "#CMD:KNOCK") label = "🔔 " + targetName + "님의 긴급 호출!";
-        if (payload === "#CMD:RESET_FACE") return; // 표정 리셋은 무시
+        if (payload === "#CMD:RESET_FACE") return;
 
         chatHistory.push({ id: "cmd_" + Date.now(), text: label, sender: 'other', isAction: true, time: Date.now() });
         saveAndRenderChat();
+
+        // 상단 배너 알림 및 진동 울림
+        notifyIncomingMessage(targetName, label, true);
         return;
       }
 
-      // 3. 상대방이 보낸 일반 텍스트 메시지
+      // 3. 상대방 일반 텍스트 메시지 수신
       let cleanMsg = payload;
       let msgId = "m_" + Date.now();
 
@@ -409,17 +499,19 @@
         }
       }
 
-      // 중복 수신 방지
       const exists = chatHistory.some(m => m.id === msgId);
       if (!exists) {
         chatHistory.push({
           id: msgId,
           text: cleanMsg,
-          sender: 'other', // 상대방 메시지로 분류
+          sender: 'other',
           time: Date.now()
         });
         if (chatHistory.length > 30) chatHistory.shift();
         saveAndRenderChat();
+
+        // 스마트폰 상단 배너 알림 & 진동
+        notifyIncomingMessage(targetName, cleanMsg, false);
       }
     };
 
@@ -430,8 +522,6 @@
       onSuccess: () => {
         document.getElementById("statusDot").classList.add("connected");
         document.getElementById("statusText").innerText = "연결됨";
-        
-        // 내 수신 토픽 구독 (상대방이 보낸 메시지 및 ACK 수신)
         const mySubTopic = `deskpet_2026/${pairCode}/dev_${myName}`;
         client.subscribe(mySubTopic);
       },
@@ -458,7 +548,6 @@
     message.destinationName = pubTopic;
     client.send(message);
 
-    // 내가 보낸 메시지 저장 (우측 노란 말풍선)
     chatHistory.push({ id: msgId, text: text, sender: 'me', read: false, time: Date.now() });
     if (chatHistory.length > 30) chatHistory.shift();
     saveAndRenderChat();
@@ -494,14 +583,12 @@
 
     chatHistory.forEach(m => {
       const row = document.createElement("div");
-      
-      // 발신자 구분 (내가 보낸 것: sent, 상대방이 보낸 것: recv)
+
       if (m.sender === 'me') {
         row.className = "msg-row sent";
         const wrap = document.createElement("div");
         wrap.className = "msg-bubble-wrap";
 
-        // 읽지 않음 숫자 '1' (일반 메시지이고 읽지 않았을 때)
         if (!m.isAction && !m.read) {
           const badge = document.createElement("span");
           badge.className = "unread-badge";
@@ -590,3 +677,4 @@
 </script>
 </body>
 </html>
+
